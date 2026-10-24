@@ -32,8 +32,8 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Ensure Android Harness
-        run: flutter create . --platforms=android --org=com.example
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
 
       - name: Analyze Code
         run: flutter analyze --no-fatal-warnings --no-fatal-infos || true
