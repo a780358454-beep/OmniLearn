@@ -45,6 +45,7 @@ class ColorTokens {
 
   static const Color primary = Color(0xFF4F46E5);    // 6.29:1
   static const Color accent = Color(0xFF047857);     // 5.48:1
+  static const Color accentGreen = Color(0xFF10B981);
   static const Color success = Color(0xFF059669);
   static const Color warning = Color(0xFFD97706);
   static const Color error = Color(0xFFDC2626);
