@@ -7,6 +7,8 @@ class StorageRepository {
   static const String _keyProgress = 'omni_progress_v2';
   static const String _keyCurricula = 'omni_curricula_v2';
   static const String _keyAttempts = 'omni_attempts_v2';
+  static const String _keyUsers = 'omni_users_v1';
+  static const String _keySession = 'omni_session_v1';
 
   // --- 1. حفظ واسترجاع الهوية والإعدادات ---
   static Future<void> saveBranding(AppBrandingConfig branding) async {
@@ -19,7 +21,9 @@ class StorageRepository {
     final raw = prefs.getString(_keyBranding);
     if (raw == null) return null;
     try {
-      return AppBrandingConfig.fromJson(jsonDecode(raw));
+      return AppBrandingConfig.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
@@ -60,7 +64,6 @@ class StorageRepository {
     final prefs = await SharedPreferences.getInstance();
     final currentList = await loadAttempts();
     currentList.add(attempt);
-
     final encoded = jsonEncode(currentList.map((a) => a.toJson()).toList());
     await prefs.setString(_keyAttempts, encoded);
   }
@@ -71,17 +74,21 @@ class StorageRepository {
     if (raw == null) return [];
     try {
       final list = jsonDecode(raw) as List;
-      return list.map((item) => Attempt.fromJson(item)).toList();
+      return list
+          .map((item) => Attempt.fromJson(item as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }
   }
 
-  // تصدير المحاولات إلى CSV جاهز للتحليل الإحصائي (SPSS / Excel)
+  /// تصدير المحاولات إلى CSV جاهز للتحليل الإحصائي (SPSS / Excel)
   static Future<String> exportAttemptsCsv() async {
     final attempts = await loadAttempts();
     final buffer = StringBuffer();
-    buffer.writeln('id,userId,questionId,lessonId,sessionId,chosen,isCorrect,durationMs,phase,createdAt');
+    buffer.writeln(
+      'id,userId,questionId,lessonId,sessionId,chosen,isCorrect,durationMs,phase,createdAt',
+    );
     for (var a in attempts) {
       buffer.writeln(a.toCsvRow());
     }
@@ -101,9 +108,48 @@ class StorageRepository {
     if (raw == null) return null;
     try {
       final list = jsonDecode(raw) as List;
-      return list.map((item) => CurriculumDomain.fromJson(item)).toList();
+      return list
+          .map((item) => CurriculumDomain.fromJson(item as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return null;
     }
+  }
+
+  // --- 5. حفظ واسترجاع المستخدمين (الحسابات) ---
+  static Future<void> saveUsers(List<AppUser> users) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(users.map((u) => u.toJson()).toList());
+    await prefs.setString(_keyUsers, encoded);
+  }
+
+  static Future<List<AppUser>?> loadUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyUsers);
+    if (raw == null) return null;
+    try {
+      final list = jsonDecode(raw) as List;
+      return list
+          .map((item) => AppUser.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // --- 6. الجلسة الحالية ---
+  static Future<void> saveSessionUserId(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keySession, userId);
+  }
+
+  static Future<String?> loadSessionUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keySession);
+  }
+
+  static Future<void> clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keySession);
   }
 }

@@ -1,11 +1,24 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/learning_models.dart';
 import '../repositories/storage_repository.dart';
+import '../security/password_hasher.dart';
 import '../../data/initial_curricula.dart';
+
+/// نتيجة أي عملية مصادقة — رسالة واضحة بدل استثناء.
+class AuthResult {
+  final bool success;
+  final String? message;
+
+  const AuthResult.ok()
+      : success = true,
+        message = null;
+
+  const AuthResult.fail(this.message) : success = false;
+}
 
 class AppStateService extends ChangeNotifier {
   static final AppStateService instance = AppStateService._();
+
   AppStateService._() {
     _initialize();
   }
@@ -15,8 +28,14 @@ class AppStateService extends ChangeNotifier {
   late List<AppUser> _users;
   late AppUser _currentUser;
   late String _activeCurriculumId;
-  String _activeSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
 
+  bool _isReady = false;
+  bool _isAuthenticated = false;
+  String _activeSessionId =
+      'session_${DateTime.now().millisecondsSinceEpoch}';
+
+  bool get isReady => _isReady;
+  bool get isAuthenticated => _isAuthenticated;
   AppBrandingConfig get branding => _branding;
   List<CurriculumDomain> get curricula => _curricula;
   List<AppUser> get users => _users;
@@ -24,12 +43,14 @@ class AppStateService extends ChangeNotifier {
   String get activeCurriculumId => _activeCurriculumId;
   String get activeSessionId => _activeSessionId;
   bool get isDarkMode => _branding.isDarkMode;
+  bool get isAdmin => _currentUser.isAdmin;
+  bool get canAuthor => _currentUser.canAuthor;
 
   CurriculumDomain get activeCurriculum {
     return _curricula.firstWhere(
       (c) => c.id == _activeCurriculumId,
-      orElse: () => _curricula.isNotEmpty 
-          ? _curricula.first 
+      orElse: () => _curricula.isNotEmpty
+          ? _curricula.first
           : CurriculumDomain(
               id: 'empty',
               name: 'مسار فارغ',
@@ -41,57 +62,37 @@ class AppStateService extends ChangeNotifier {
     );
   }
 
+  AppUser _guest() =>
+      AppUser(id: 'guest', name: '', email: '', role: UserRole.student);
+
+  // --- الإقلاع ---
   Future<void> _initialize() async {
-    // 1. الإعدادات الافتراضية
     _branding = AppBrandingConfig(
       appName: 'OmniLearn',
-      appTagline: 'Universal Learning & Assessment Engine',
+      appTagline: 'منصة تعلم البرمجة وهندسة البرمجيات',
       logoIcon: 'terminal',
-      primaryColorValue: 0xFF4F46E5, // Indigo compliant
-      accentColorValue: 0xFF047857,  // Darker emerald compliant
+      primaryColorValue: 0xFF4F46E5,
+      accentColorValue: 0xFF047857,
       activeCurriculumId: 'curriculum_software_dev',
       isDarkMode: true,
     );
 
     _curricula = InitialCurriculaData.getCurricula();
     _activeCurriculumId = _branding.activeCurriculumId;
+    _currentUser = _guest();
 
-    _users = [
-      AppUser(
-        id: 'admin_root',
-        name: 'مدير المنصة (Admin)',
-        email: 'admin@omnilearn.org',
-        role: UserRole.admin,
-        xp: 1500,
-        streakDays: 12,
-      ),
-      AppUser(
-        id: 'creator_1',
-        name: 'م. أحمد (مؤلف مناهج الحاسوب)',
-        email: 'ahmed@omnilearn.org',
-        role: UserRole.creator,
-        xp: 600,
-        streakDays: 6,
-        assignedCourseIds: ['course_se', 'course_sad'],
-      ),
-      AppUser(
-        id: 'student_1',
-        name: 'سامي (طالب ومبرمج متدرب)',
-        email: 'sami@learner.com',
-        role: UserRole.student,
-        xp: 150,
-        streakDays: 3,
-        completedLessonIds: [],
-      ),
-    ];
+    final loadedUsers = await StorageRepository.loadUsers();
+    if (loadedUsers != null && loadedUsers.isNotEmpty) {
+      _users = loadedUsers;
+    } else {
+      _users = [_buildSeedAdmin()];
+      await StorageRepository.saveUsers(_users);
+    }
 
-    _currentUser = _users.first;
-
-    // 2. محاولة استرجاع البيانات المحفوظة من SharedPreferences
     final loadedBranding = await StorageRepository.loadBranding();
     if (loadedBranding != null) {
       _branding = loadedBranding;
-      _activeCurriculumId = _branding.activeCurriculumId;
+      _activeCurriculumId = loadedBranding.activeCurriculumId;
     }
 
     final loadedCurricula = await StorageRepository.loadCurricula();
@@ -99,70 +100,265 @@ class AppStateService extends ChangeNotifier {
       _curricula = loadedCurricula;
     }
 
-    final loadedProgress = await StorageRepository.loadUserProgress(_currentUser.id);
-    if (loadedProgress != null) {
-      _currentUser.xp = loadedProgress['xp'] ?? _currentUser.xp;
-      _currentUser.streakDays = loadedProgress['streakDays'] ?? _currentUser.streakDays;
-      _currentUser.completedLessonIds = List<String>.from(loadedProgress['completedLessonIds'] ?? []);
-      if (loadedProgress['lastActiveDate'] != null) {
-        _currentUser.lastActiveDate = DateTime.tryParse(loadedProgress['lastActiveDate']) ?? DateTime.now();
+    final sessionId = await StorageRepository.loadSessionUserId();
+    if (sessionId != null) {
+      for (final u in _users) {
+        if (u.id == sessionId && u.isActive) {
+          _currentUser = u;
+          _isAuthenticated = true;
+          await _loadProgressFor(u);
+          break;
+        }
       }
     }
 
-    _touchStreak();
+    if (_isAuthenticated) {
+      _touchStreak();
+    }
+
+    _isReady = true;
     notifyListeners();
   }
 
-  // --- محرك تتابع الأيام الحقيقي (Streak Engine) ---
-  void _touchStreak() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final last = DateTime(
-      _currentUser.lastActiveDate.year,
-      _currentUser.lastActiveDate.month,
-      _currentUser.lastActiveDate.day,
+  /// حساب المدير الأول — كلمة السر الافتراضية: 1234
+  AppUser _buildSeedAdmin() {
+    final salt = PasswordHasher.generateSalt();
+    return AppUser(
+      id: 'admin_root',
+      name: 'عبودي',
+      email: 'abodi@omnilearn.app',
+      username: 'abodi',
+      salt: salt,
+      passwordHash: PasswordHasher.hash('1234', salt),
+      role: UserRole.admin,
+      mustChangePassword: true,
+    );
+  }
+
+  // --- المصادقة ---
+  Future<AuthResult> login(String username, String password) async {
+    final key = username.trim().toLowerCase();
+    if (key.isEmpty || password.isEmpty) {
+      return const AuthResult.fail('أدخل اسم المستخدم وكلمة السر');
+    }
+
+    AppUser? found;
+    for (final u in _users) {
+      if (u.username.toLowerCase() == key || u.email.toLowerCase() == key) {
+        found = u;
+        break;
+      }
+    }
+
+    if (found == null) {
+      return const AuthResult.fail('لا يوجد حساب بهذا المعرّف');
+    }
+    if (!found.isActive) {
+      return const AuthResult.fail('هذا الحساب معطّل — راجع المدير');
+    }
+    if (!PasswordHasher.verify(password, found.salt, found.passwordHash)) {
+      return const AuthResult.fail('كلمة السر غير صحيحة');
+    }
+
+    await _startSession(found);
+    return const AuthResult.ok();
+  }
+
+  Future<AuthResult> register({
+    required String name,
+    required String email,
+    required String username,
+    required String password,
+  }) async {
+    final cleanName = name.trim();
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanUser = username.trim().toLowerCase();
+
+    if (cleanName.length < 2) {
+      return const AuthResult.fail('الاسم قصير جدًا');
+    }
+    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(cleanEmail)) {
+      return const AuthResult.fail('البريد الإلكتروني غير صالح');
+    }
+    if (cleanUser.length < 3) {
+      return const AuthResult.fail('اسم المستخدم ٣ أحرف على الأقل');
+    }
+    if (!RegExp(r'^[a-z0-9_]+$').hasMatch(cleanUser)) {
+      return const AuthResult.fail(
+        'اسم المستخدم: حروف إنجليزية وأرقام و _ فقط',
+      );
+    }
+    if (password.length < 4) {
+      return const AuthResult.fail('كلمة السر ٤ أحرف على الأقل');
+    }
+    if (_users.any((u) => u.username.toLowerCase() == cleanUser)) {
+      return const AuthResult.fail('اسم المستخدم مستخدم بالفعل');
+    }
+    if (_users.any((u) => u.email.toLowerCase() == cleanEmail)) {
+      return const AuthResult.fail('البريد الإلكتروني مسجّل بالفعل');
+    }
+
+    final salt = PasswordHasher.generateSalt();
+    final user = AppUser(
+      id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+      name: cleanName,
+      email: cleanEmail,
+      username: cleanUser,
+      salt: salt,
+      passwordHash: PasswordHasher.hash(password, salt),
+      role: UserRole.student,
     );
 
-    final diff = today.difference(last).inDays;
-    if (diff == 1) {
-      _currentUser.streakDays += 1;
-    } else if (diff > 1) {
-      _currentUser.streakDays = 1;
-    }
-    _currentUser.lastActiveDate = now;
-    _persistUserProgress();
+    _users.add(user);
+    await StorageRepository.saveUsers(_users);
+    await _startSession(user);
+    return const AuthResult.ok();
   }
 
-  // --- تبديل الوضع الليلي / الفاتح ---
-  void toggleThemeMode() {
-    _branding.isDarkMode = !_branding.isDarkMode;
-    StorageRepository.saveBranding(_branding);
-    notifyListeners();
-  }
-
-  // --- تبديل الحساب والدور (معاينة تجريبية Demo) ---
-  void switchCurrentUser(AppUser user) {
+  Future<void> _startSession(AppUser user) async {
     _currentUser = user;
+    _isAuthenticated = true;
+    user.lastLoginAt = DateTime.now();
+    _activeSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
+    await _loadProgressFor(user);
+    await StorageRepository.saveUsers(_users);
+    await StorageRepository.saveSessionUserId(user.id);
     _touchStreak();
     notifyListeners();
   }
 
-  void switchRole(UserRole role) {
-    final found = _users.firstWhere(
-      (u) => u.role == role,
-      orElse: () => _users.isNotEmpty ? _users.first : AppUser(
-        id: 'usr_temp',
-        name: 'Guest User',
-        email: 'guest@omnilearn.org',
+  Future<void> logout() async {
+    await _persistUserProgress();
+    await StorageRepository.clearSession();
+    _currentUser = _guest();
+    _isAuthenticated = false;
+    notifyListeners();
+  }
+
+  Future<AuthResult> changeOwnPassword(
+    String oldPassword,
+    String newPassword,
+  ) async {
+    if (!_isAuthenticated) {
+      return const AuthResult.fail('يجب تسجيل الدخول أولاً');
+    }
+    if (!PasswordHasher.verify(
+      oldPassword,
+      _currentUser.salt,
+      _currentUser.passwordHash,
+    )) {
+      return const AuthResult.fail('كلمة السر الحالية غير صحيحة');
+    }
+    if (newPassword.length < 4) {
+      return const AuthResult.fail('كلمة السر الجديدة ٤ أحرف على الأقل');
+    }
+    if (newPassword == oldPassword) {
+      return const AuthResult.fail('اختر كلمة سر مختلفة عن الحالية');
+    }
+
+    final salt = PasswordHasher.generateSalt();
+    _currentUser.salt = salt;
+    _currentUser.passwordHash = PasswordHasher.hash(newPassword, salt);
+    _currentUser.mustChangePassword = false;
+    await StorageRepository.saveUsers(_users);
+    notifyListeners();
+    return const AuthResult.ok();
+  }
+
+  Future<AuthResult> resetUserPassword(
+    String userId,
+    String newPassword,
+  ) async {
+    if (!isAdmin) {
+      return const AuthResult.fail('غير مصرّح');
+    }
+    if (newPassword.length < 4) {
+      return const AuthResult.fail('كلمة السر ٤ أحرف على الأقل');
+    }
+    final idx = _users.indexWhere((u) => u.id == userId);
+    if (idx == -1) {
+      return const AuthResult.fail('المستخدم غير موجود');
+    }
+    final salt = PasswordHasher.generateSalt();
+    _users[idx].salt = salt;
+    _users[idx].passwordHash = PasswordHasher.hash(newPassword, salt);
+    _users[idx].mustChangePassword = true;
+    await StorageRepository.saveUsers(_users);
+    notifyListeners();
+    return const AuthResult.ok();
+  }
+
+  // --- إدارة الحسابات (المدير فقط) ---
+  AuthResult createUser({
+    required String name,
+    required String email,
+    required UserRole role,
+    String? username,
+    String? password,
+  }) {
+    if (!isAdmin) {
+      return const AuthResult.fail('غير مصرّح');
+    }
+
+    final cleanEmail = email.trim().toLowerCase();
+    var cleanUser = (username ?? cleanEmail.split('@').first)
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+    if (cleanUser.isEmpty) cleanUser = 'user';
+
+    var candidate = cleanUser;
+    var i = 1;
+    while (_users.any((u) => u.username.toLowerCase() == candidate)) {
+      candidate = '$cleanUser$i';
+      i++;
+    }
+
+    final plain = (password == null || password.isEmpty) ? '1234' : password;
+    final salt = PasswordHasher.generateSalt();
+
+    _users.add(
+      AppUser(
+        id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+        name: name.trim(),
+        email: cleanEmail,
+        username: candidate,
+        salt: salt,
+        passwordHash: PasswordHasher.hash(plain, salt),
         role: role,
+        mustChangePassword: true,
       ),
     );
-    _currentUser = found;
-    _touchStreak();
+    StorageRepository.saveUsers(_users);
     notifyListeners();
+    return const AuthResult.ok();
   }
 
-  // --- ميزات الأدمن: هوية التطبيق وتخصيص الأيقونة والألوان والسياسات ---
+  void toggleUserStatus(String userId) {
+    if (!isAdmin) return;
+    final idx = _users.indexWhere((u) => u.id == userId);
+    if (idx != -1) {
+      _users[idx].isActive = !_users[idx].isActive;
+      StorageRepository.saveUsers(_users);
+      notifyListeners();
+    }
+  }
+
+  bool deleteUser(String userId) {
+    if (!isAdmin) return false;
+    final idx = _users.indexWhere((u) => u.id == userId);
+    if (idx == -1) return false;
+    if (_users[idx].role == UserRole.admin) {
+      final admins = _users.where((u) => u.role == UserRole.admin).length;
+      if (admins <= 1) return false;
+    }
+    _users.removeAt(idx);
+    StorageRepository.saveUsers(_users);
+    notifyListeners();
+    return true;
+  }
+
+  // --- الهوية والمظهر ---
   void updateBranding({
     required String appName,
     required String appTagline,
@@ -170,6 +366,7 @@ class AppStateService extends ChangeNotifier {
     required int primaryColorValue,
     required int accentColorValue,
   }) {
+    if (!isAdmin) return;
     _branding.appName = appName;
     _branding.appTagline = appTagline;
     _branding.logoIcon = logoIcon;
@@ -179,56 +376,21 @@ class AppStateService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ميزات الأدمن: إدارة الحسابات مع حماية آخر مدير من الحذف ---
-  void createUser({
-    required String name,
-    required String email,
-    required UserRole role,
-  }) {
-    final newUser = AppUser(
-      id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
-      name: name,
-      email: email,
-      role: role,
-    );
-    _users.add(newUser);
+  void toggleThemeMode() {
+    _branding.isDarkMode = !_branding.isDarkMode;
+    StorageRepository.saveBranding(_branding);
     notifyListeners();
   }
 
-  void toggleUserStatus(String userId) {
-    final idx = _users.indexWhere((u) => u.id == userId);
-    if (idx != -1) {
-      _users[idx].isActive = !_users[idx].isActive;
-      notifyListeners();
-    }
-  }
-
-  bool deleteUser(String userId) {
-    final target = _users.firstWhere((u) => u.id == userId, orElse: () => _users.first);
-    // حماية: منع حذف آخر مدير للنظام منعاً لانهيار الصلاحيات
-    if (target.role == UserRole.admin) {
-      final adminCount = _users.where((u) => u.role == UserRole.admin).length;
-      if (adminCount <= 1) {
-        return false; // لا يمكن حذف المدير الوحيد
-      }
-    }
-
-    _users.removeWhere((u) => u.id == userId);
-    if (_currentUser.id == userId && _users.isNotEmpty) {
-      _currentUser = _users.first;
-    }
-    notifyListeners();
-    return true;
-  }
-
-  // --- ميزات الأدمن: حوكمة ونشر المحتوى ---
+  // --- حوكمة المحتوى ---
   void setContentPublishStatus({
     required String lessonId,
     required ContentStatus status,
   }) {
-    for (var curriculum in _curricula) {
-      for (var course in curriculum.courses) {
-        for (var module in course.modules) {
+    if (!isAdmin) return;
+    for (final curriculum in _curricula) {
+      for (final course in curriculum.courses) {
+        for (final module in course.modules) {
           final lIndex = module.lessons.indexWhere((l) => l.id == lessonId);
           if (lIndex != -1) {
             module.lessons[lIndex].status = status;
@@ -241,7 +403,7 @@ class AppStateService extends ChangeNotifier {
     }
   }
 
-  // --- إدارة المسارات المنفصلة ---
+  // --- المسارات ---
   void createNewCurriculum({
     required String name,
     required String code,
@@ -249,6 +411,7 @@ class AppStateService extends ChangeNotifier {
     required DomainCategory category,
     required String iconName,
   }) {
+    if (!isAdmin) return;
     final newCurriculum = CurriculumDomain(
       id: 'curriculum_${DateTime.now().millisecondsSinceEpoch}',
       name: name,
@@ -265,29 +428,32 @@ class AppStateService extends ChangeNotifier {
   }
 
   void setActiveCurriculum(String curriculumId) {
+    if (!isAdmin) return;
     _activeCurriculumId = curriculumId;
     _branding.activeCurriculumId = curriculumId;
     StorageRepository.saveBranding(_branding);
     notifyListeners();
   }
 
-  // --- استوديو المؤلف (Creator Studio) ---
+  // --- استوديو المؤلف ---
   void addCourseToActiveCurriculum({
     required String title,
     required String code,
     required String description,
     required String iconName,
   }) {
-    final newCourse = Course(
-      id: 'course_${DateTime.now().millisecondsSinceEpoch}',
-      curriculumId: _activeCurriculumId,
-      title: title,
-      code: code,
-      description: description,
-      iconName: iconName,
-      status: ContentStatus.published,
+    if (!canAuthor) return;
+    activeCurriculum.courses.add(
+      Course(
+        id: 'course_${DateTime.now().millisecondsSinceEpoch}',
+        curriculumId: _activeCurriculumId,
+        title: title,
+        code: code,
+        description: description,
+        iconName: iconName,
+        status: ContentStatus.published,
+      ),
     );
-    activeCurriculum.courses.add(newCourse);
     StorageRepository.saveCurricula(_curricula);
     notifyListeners();
   }
@@ -297,16 +463,18 @@ class AppStateService extends ChangeNotifier {
     required String title,
     required String description,
   }) {
+    if (!canAuthor) return;
     final course = activeCurriculum.courses.firstWhere((c) => c.id == courseId);
-    final newModule = CourseModule(
-      id: 'mod_${DateTime.now().millisecondsSinceEpoch}',
-      courseId: courseId,
-      title: title,
-      description: description,
-      orderIndex: course.modules.length + 1,
-      status: ContentStatus.published,
+    course.modules.add(
+      CourseModule(
+        id: 'mod_${DateTime.now().millisecondsSinceEpoch}',
+        courseId: courseId,
+        title: title,
+        description: description,
+        orderIndex: course.modules.length + 1,
+        status: ContentStatus.published,
+      ),
     );
-    course.modules.add(newModule);
     StorageRepository.saveCurricula(_curricula);
     notifyListeners();
   }
@@ -316,6 +484,7 @@ class AppStateService extends ChangeNotifier {
     required String moduleId,
     required Lesson lesson,
   }) {
+    if (!canAuthor) return;
     final course = activeCurriculum.courses.firstWhere((c) => c.id == courseId);
     final module = course.modules.firstWhere((m) => m.id == moduleId);
     module.lessons.add(lesson);
@@ -323,14 +492,15 @@ class AppStateService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- تصدير واستيراد المناهج ---
+  // --- التصدير والاستيراد ---
   String exportActiveCurriculumJson() {
-    return const JsonEncoder.withIndent('  ').convert(activeCurriculum.toJson());
+    return const JsonEncoder.withIndent(' ').convert(activeCurriculum.toJson());
   }
 
   bool importCurriculumFromJson(String jsonContent) {
+    if (!isAdmin) return false;
     try {
-      final decoded = json.decode(jsonContent) as Map<String, dynamic>;
+      final decoded = jsonDecode(jsonContent) as Map<String, dynamic>;
       final domain = CurriculumDomain.fromJson(decoded);
       _curricula.removeWhere((c) => c.id == domain.id);
       _curricula.add(domain);
@@ -339,12 +509,12 @@ class AppStateService extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint("Import error: $e");
+      debugPrint('Import error: $e');
       return false;
     }
   }
 
-  // --- تسجيل المحاولات للورقة البحثية (Research Attempt Logger) ---
+  // --- البحث والمحاولات ---
   void logAttempt({
     required String questionId,
     required String lessonId,
@@ -353,41 +523,75 @@ class AppStateService extends ChangeNotifier {
     required int durationMs,
     AttemptPhase phase = AttemptPhase.practice,
   }) {
-    final attempt = Attempt(
-      id: 'att_${DateTime.now().millisecondsSinceEpoch}',
-      userId: _currentUser.id,
-      questionId: questionId,
-      lessonId: lessonId,
-      sessionId: _activeSessionId,
-      chosen: chosen,
-      isCorrect: isCorrect,
-      durationMs: durationMs,
-      phase: phase,
+    if (!_isAuthenticated) return;
+    StorageRepository.recordAttempt(
+      Attempt(
+        id: 'att_${DateTime.now().millisecondsSinceEpoch}',
+        userId: _currentUser.id,
+        questionId: questionId,
+        lessonId: lessonId,
+        sessionId: _activeSessionId,
+        chosen: chosen,
+        isCorrect: isCorrect,
+        durationMs: durationMs,
+        phase: phase,
+      ),
     );
-    StorageRepository.recordAttempt(attempt);
   }
 
-  Future<String> exportResearchCsv() async {
-    return await StorageRepository.exportAttemptsCsv();
-  }
+  Future<String> exportResearchCsv() => StorageRepository.exportAttemptsCsv();
 
-  // --- تتبع إنجاز الطالب والـ XP ---
-  bool isLessonCompleted(String lessonId) {
-    return _currentUser.completedLessonIds.contains(lessonId);
-  }
+  // --- التقدم والسلسلة ---
+  bool isLessonCompleted(String lessonId) =>
+      _currentUser.completedLessonIds.contains(lessonId);
+
+  int get completedLessonsCount => _currentUser.completedLessonIds.length;
 
   void completeLesson(String lessonId, int earnedXp) {
-    if (!_currentUser.completedLessonIds.contains(lessonId)) {
-      _currentUser.completedLessonIds.add(lessonId);
-      _currentUser.xp += earnedXp;
-      _touchStreak();
-      _persistUserProgress();
-      notifyListeners();
+    if (!_isAuthenticated) return;
+    if (_currentUser.completedLessonIds.contains(lessonId)) return;
+    _currentUser.completedLessonIds.add(lessonId);
+    _currentUser.xp += earnedXp;
+    _touchStreak();
+    _persistUserProgress();
+    notifyListeners();
+  }
+
+  void _touchStreak() {
+    if (!_isAuthenticated) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final last = DateTime(
+      _currentUser.lastActiveDate.year,
+      _currentUser.lastActiveDate.month,
+      _currentUser.lastActiveDate.day,
+    );
+    final diff = today.difference(last).inDays;
+    if (diff == 1) {
+      _currentUser.streakDays += 1;
+    } else if (diff > 1) {
+      _currentUser.streakDays = 1;
+    }
+    _currentUser.lastActiveDate = now;
+    _persistUserProgress();
+  }
+
+  Future<void> _loadProgressFor(AppUser user) async {
+    final loaded = await StorageRepository.loadUserProgress(user.id);
+    if (loaded == null) return;
+    user.xp = loaded['xp'] ?? user.xp;
+    user.streakDays = loaded['streakDays'] ?? user.streakDays;
+    user.completedLessonIds =
+        List<String>.from(loaded['completedLessonIds'] ?? []);
+    final last = loaded['lastActiveDate'];
+    if (last != null) {
+      user.lastActiveDate = DateTime.tryParse(last) ?? user.lastActiveDate;
     }
   }
 
-  void _persistUserProgress() {
-    StorageRepository.saveUserProgress(
+  Future<void> _persistUserProgress() async {
+    if (!_isAuthenticated) return;
+    await StorageRepository.saveUserProgress(
       userId: _currentUser.id,
       xp: _currentUser.xp,
       streakDays: _currentUser.streakDays,
@@ -395,6 +599,4 @@ class AppStateService extends ChangeNotifier {
       completedLessonIds: _currentUser.completedLessonIds,
     );
   }
-
-  int get completedLessonsCount => _currentUser.completedLessonIds.length;
 }

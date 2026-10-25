@@ -213,11 +213,19 @@ class AppUser {
   final String id;
   String name;
   String email;
+  String username;
+  String salt;
+  String passwordHash;
   UserRole role;
   bool isActive;
+  bool isApproved;
+  bool isPremium;
+  bool mustChangePassword;
   int xp;
   int streakDays;
+  DateTime createdAt;
   DateTime lastActiveDate;
+  DateTime? lastLoginAt;
   List<String> completedLessonIds;
   List<String> assignedCourseIds;
 
@@ -225,26 +233,47 @@ class AppUser {
     required this.id,
     required this.name,
     required this.email,
+    this.username = '',
+    this.salt = '',
+    this.passwordHash = '',
     required this.role,
     this.isActive = true,
+    this.isApproved = true,
+    this.isPremium = false,
+    this.mustChangePassword = false,
     this.xp = 0,
     this.streakDays = 1,
+    DateTime? createdAt,
     DateTime? lastActiveDate,
+    this.lastLoginAt,
     List<String>? completedLessonIds,
     List<String>? assignedCourseIds,
-  }) : lastActiveDate = lastActiveDate ?? DateTime.now(),
-       completedLessonIds = completedLessonIds ?? [],
-       assignedCourseIds = assignedCourseIds ?? [];
+  })  : createdAt = createdAt ?? DateTime.now(),
+        lastActiveDate = lastActiveDate ?? DateTime.now(),
+        completedLessonIds = completedLessonIds ?? [],
+        assignedCourseIds = assignedCourseIds ?? [];
+
+  bool get isAdmin => role == UserRole.admin;
+  bool get isCreator => role == UserRole.creator;
+  bool get canAuthor => role == UserRole.admin || role == UserRole.creator;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'email': email,
+    'username': username,
+    'salt': salt,
+    'passwordHash': passwordHash,
     'role': role.name,
     'isActive': isActive,
+    'isApproved': isApproved,
+    'isPremium': isPremium,
+    'mustChangePassword': mustChangePassword,
     'xp': xp,
     'streakDays': streakDays,
+    'createdAt': createdAt.toIso8601String(),
     'lastActiveDate': lastActiveDate.toIso8601String(),
+    'lastLoginAt': lastLoginAt?.toIso8601String(),
     'completedLessonIds': completedLessonIds,
     'assignedCourseIds': assignedCourseIds,
   };
@@ -253,14 +282,22 @@ class AppUser {
     id: json['id'] ?? '',
     name: json['name'] ?? '',
     email: json['email'] ?? '',
+    username: json['username'] ?? '',
+    salt: json['salt'] ?? '',
+    passwordHash: json['passwordHash'] ?? '',
     role: UserRole.values.firstWhere(
-      (e) => e.name == json['role'], 
-      orElse: () => UserRole.student
+      (e) => e.name == json['role'],
+      orElse: () => UserRole.student,
     ),
     isActive: json['isActive'] ?? true,
+    isApproved: json['isApproved'] ?? true,
+    isPremium: json['isPremium'] ?? false,
+    mustChangePassword: json['mustChangePassword'] ?? false,
     xp: json['xp'] ?? 0,
     streakDays: json['streakDays'] ?? 1,
+    createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
     lastActiveDate: DateTime.tryParse(json['lastActiveDate'] ?? '') ?? DateTime.now(),
+    lastLoginAt: json['lastLoginAt'] == null ? null : DateTime.tryParse(json['lastLoginAt']),
     completedLessonIds: List<String>.from(json['completedLessonIds'] ?? []),
     assignedCourseIds: List<String>.from(json['assignedCourseIds'] ?? []),
   );

@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/services/app_state_service.dart';
 import 'core/i18n/app_translations.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/login_screen.dart';
 import 'features/learner/learner_home_screen.dart';
 
 void main() {
@@ -41,12 +42,34 @@ class OmniLearnApp extends StatelessWidget {
           themeMode: state.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           theme: AppTheme.light(primary: primary, accent: accent),
           darkTheme: AppTheme.dark(primary: primary, accent: accent),
-          home: Directionality(
+          // الاتجاه هنا فوق الـNavigator حتى تشمله كل الشاشات والحوارات
+          builder: (context, child) => Directionality(
             textDirection: i18n.textDirection,
-            child: const LearnerHomeScreen(),
+            child: child ?? const SizedBox.shrink(),
           ),
+          home: const RootGate(),
         );
       },
     );
+  }
+}
+
+/// بوابة الإقلاع: تحميل → دخول → التطبيق
+class RootGate extends StatelessWidget {
+  const RootGate({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppStateService.instance;
+
+    if (!state.isReady) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return state.isAuthenticated
+        ? const LearnerHomeScreen()
+        : const LoginScreen();
   }
 }
