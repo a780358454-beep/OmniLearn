@@ -21,8 +21,16 @@ class AuthResult {
 class AppStateService extends ChangeNotifier {
   static final AppStateService instance = AppStateService._();
 
-  AppStateService._() {
-    _initialize();
+  AppStateService._();
+
+  Future<void>? _initFuture;
+
+  String? _startupError;
+  String? get startupError => _startupError;
+
+  /// تهيئة صريحة تُنتظر من main() قبل أول إطار.
+  Future<void> ensureInitialized() {
+    return _initFuture ??= _initialize();
   }
 
   late AppBrandingConfig _branding;
@@ -69,7 +77,14 @@ class AppStateService extends ChangeNotifier {
 
   // --- الإقلاع ---
   Future<void> _initialize() async {
-    _branding = AppBrandingConfig(
+    // قيم افتراضية أولاً حتى لا يبقى أي حقل غير مهيأ عند الخطأ
+    _users = <AppUser>[];
+    _currentUser = _guest();
+    _curricula = <CurriculumDomain>[];
+    _activeCurriculumId = 'curriculum_software_dev';
+
+    try {
+      _branding = AppBrandingConfig(
       appName: 'OmniLearn',
       appTagline: 'منصة تعلم البرمجة وهندسة البرمجيات',
       logoIcon: 'terminal',
@@ -118,8 +133,29 @@ class AppStateService extends ChangeNotifier {
       _touchStreak();
     }
 
-    _isReady = true;
-    notifyListeners();
+    } catch (e) {
+      debugPrint('Init error: $e');
+      _startupError = e.toString();
+      // ضمان وجود حساب مدير حتى لو فشل التخزين
+      if (_users.isEmpty) {
+        try {
+          _users = [_buildSeedAdmin()];
+        } catch (_) {
+          _users = <AppUser>[];
+        }
+      }
+      if (_curricula.isEmpty) {
+        try {
+          _curricula = InitialCurriculaData.getCurricula();
+        } catch (_) {
+          _curricula = <CurriculumDomain>[];
+        }
+      }
+      _currentUser = _guest();
+    } finally {
+      _isReady = true;
+      notifyListeners();
+    }
   }
 
   /// حساب المدير الأول — كلمة السر الافتراضية: 1234

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/services/app_state_service.dart';
@@ -6,8 +8,18 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/learner/learner_home_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // التهيئة تُنتظر قبل أول إطار — هذا ما يمنع شاشة التحميل الأبدية
+  try {
+    await AppStateService.instance
+        .ensureInitialized()
+        .timeout(const Duration(seconds: 8));
+  } catch (_) {
+    // لا نمنع الإقلاع مهما حدث؛ البوابة ستتعامل مع الحالة
+  }
+
   runApp(const OmniLearnApp());
 }
 
@@ -54,22 +66,86 @@ class OmniLearnApp extends StatelessWidget {
   }
 }
 
-/// بوابة الإقلاع: تحميل → دخول → التطبيق
-class RootGate extends StatelessWidget {
+/// بوابة الإقلاع: تحميل → دخول → التطبيق.
+/// لا تعرض دائرة إلى ما لا نهاية: بعد مهلة تظهر شاشة خطأ بزر إعادة المحاولة.
+class RootGate extends StatefulWidget {
   const RootGate({Key? key}) : super(key: key);
+
+  @override
+  State<RootGate> createState() => _RootGateState();
+}
+
+class _RootGateState extends State<RootGate> {
+  bool _timedOut = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 6), () {
+      if (!mounted) return;
+      if (!AppStateService.instance.isReady) {
+        setState(() => _timedOut = true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _retry() async {
+    setState(() => _timedOut = false);
+    await AppStateService.instance.ensureInitialized();
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = AppStateService.instance;
 
-    if (!state.isReady) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+    if (state.isReady) {
+      return state.isAuthenticated
+          ? const LearnerHomeScreen()
+          : const LoginScreen();
+    }
+
+    if (_timedOut) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_rounded, size: 56),
+                const SizedBox(height: 16),
+                const Text(
+                  'تعذّر تحميل البيانات',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.startupError ?? 'حدث خطأ غير متوقع أثناء بدء التشغيل.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: _retry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
-    return state.isAuthenticated
-        ? const LearnerHomeScreen()
-        : const LoginScreen();
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
   }
 }
