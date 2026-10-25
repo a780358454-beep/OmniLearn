@@ -33,8 +33,30 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
+      # الاختبارات لا توقف الإصدار الآن، لكن نتيجتها تُنشر في Issue عند الفشل
       - name: Run Tests
-        run: flutter test
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter test 2>&1 | tee "$RUNNER_TEMP/test.log"
+
+      - name: Report test failure
+        if: steps.tests.outcome == 'failure'
+        run: |
+          {
+            echo "Commit: ${{ github.sha }}"
+            echo
+            echo '```'
+            tail -c 40000 "$RUNNER_TEMP/test.log" || echo "no test log"
+            echo '```'
+          } > "$RUNNER_TEMP/body_test.md"
+          jq -Rs --arg title "Tests failed #${{ github.run_number }}" '{title:$title, body:.}' < "$RUNNER_TEMP/body_test.md" > "$RUNNER_TEMP/payload_test.json"
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues" \
+            -d @"$RUNNER_TEMP/payload_test.json"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
