@@ -17,7 +17,7 @@ class PasswordHasher {
   }
 
   static String hash(String password, String salt) {
-    var digest = utf8.encode('$salt:$password');
+    List<int> digest = utf8.encode('$salt:$password');
     for (var i = 0; i < _iterations; i++) {
       digest = sha256.convert(digest).bytes;
     }
