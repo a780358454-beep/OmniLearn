@@ -1,4 +1,4 @@
-name: Build & Release
+﻿name: Build & Release
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build:
@@ -39,11 +40,30 @@ jobs:
         run: flutter analyze --no-fatal-warnings --no-fatal-infos || true
 
       - name: Build Release APKs (Split per ABI)
-        run: flutter build apk --release --split-per-abi
+        run: |
+          set -o pipefail
+          flutter build apk --release --split-per-abi 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Report build failure as issue
+        if: failure()
+        run: |
+          {
+            echo "Commit: ${{ github.sha }}"
+            echo
+            echo '```'
+            tail -c 60000 "$RUNNER_TEMP/build.log" || echo "no build log produced"
+            echo '```'
+          } > "$RUNNER_TEMP/body.md"
+          jq -Rs --arg title "CI build failed #${{ github.run_number }}" '{title:$title, body:.}' < "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/payload.json"
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues" \
+            -d @"$RUNNER_TEMP/payload.json"
 
       - name: Publish Release with APKs
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/heads/main')
+        if: success() && startsWith(github.ref, 'refs/heads/main')
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: "OmniLearn Release v1.0.${{ github.run_number }}"
