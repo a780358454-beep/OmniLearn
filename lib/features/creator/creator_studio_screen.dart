@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shared/role_guard.dart';
 import '../../core/services/app_state_service.dart';
 import '../../core/i18n/app_translations.dart';
 import '../../core/models/learning_models.dart';
@@ -15,6 +16,9 @@ class CreatorStudioScreen extends StatefulWidget {
 class _CreatorStudioScreenState extends State<CreatorStudioScreen> {
   @override
   Widget build(BuildContext context) {
+    if (!AppStateService.instance.canAuthor) {
+      return const ForbiddenScreen();
+    }
     final state = AppStateService.instance;
     final i18n = I18nService.instance;
     final cur = state.activeCurriculum;

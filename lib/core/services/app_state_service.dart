@@ -28,6 +28,10 @@ class AppStateService extends ChangeNotifier {
   String? _startupError;
   String? get startupError => _startupError;
 
+  /// بيانات آخر حساب أنشأه المدير — تُعرض مرة واحدة للتسليم.
+  String? lastCreatedUsername;
+  String? lastCreatedPassword;
+
   /// تهيئة صريحة تُنتظر من main() قبل أول إطار.
   Future<void> ensureInitialized() {
     return _initFuture ??= _initialize();
@@ -86,7 +90,7 @@ class AppStateService extends ChangeNotifier {
     try {
       _branding = AppBrandingConfig(
       appName: 'OmniLearn',
-      appTagline: 'منصة تعلم البرمجة وهندسة البرمجيات',
+      appTagline: 'محرك التعلم الشامل — أي مجال، أي درس',
       logoIcon: 'terminal',
       primaryColorValue: 0xFF4F46E5,
       accentColorValue: 0xFF047857,
@@ -226,14 +230,23 @@ class AppStateService extends ChangeNotifier {
         'اسم المستخدم: حروف إنجليزية وأرقام و _ فقط',
       );
     }
-    if (password.length < 4) {
-      return const AuthResult.fail('كلمة السر ٤ أحرف على الأقل');
+    if (password.length < 6) {
+      return const AuthResult.fail('كلمة السر ٦ أحرف على الأقل');
+    }
+    const weakPasswords = ['1234', '12345', '123456', 'password', 'qwerty'];
+    if (weakPasswords.contains(password.toLowerCase())) {
+      return const AuthResult.fail('كلمة السر ضعيفة جدًا — اختر كلمة أقوى');
     }
     if (_users.any((u) => u.username.toLowerCase() == cleanUser)) {
       return const AuthResult.fail('اسم المستخدم مستخدم بالفعل');
     }
     if (_users.any((u) => u.email.toLowerCase() == cleanEmail)) {
       return const AuthResult.fail('البريد الإلكتروني مسجّل بالفعل');
+    }
+    // منع التقاطع: بريد مستخدم = اسم دخول لمستخدم آخر، والعكس
+    if (_users.any((u) => u.email.toLowerCase() == cleanUser) ||
+        _users.any((u) => u.username.toLowerCase() == cleanEmail)) {
+      return const AuthResult.fail('هذا المعرّف مستخدم للدخول بطريقة أخرى');
     }
 
     final salt = PasswordHasher.generateSalt();
@@ -352,7 +365,13 @@ class AppStateService extends ChangeNotifier {
       i++;
     }
 
+    if (_users.any((u) => u.email.toLowerCase() == cleanEmail)) {
+      return const AuthResult.fail('البريد الإلكتروني مسجّل بالفعل');
+    }
+
     final plain = (password == null || password.isEmpty) ? '1234' : password;
+    lastCreatedUsername = candidate;
+    lastCreatedPassword = plain;
     final salt = PasswordHasher.generateSalt();
 
     _users.add(

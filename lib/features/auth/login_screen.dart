@@ -153,14 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: const Text('ليس لديك حساب؟ أنشئ حسابًا'),
                   ),
-                  const SizedBox(height: Space.lg),
-                  Text(
-                    'دخول المدير التجريبي: abodi / 1234',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.caption.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
+                  const SizedBox(height: Space.sm),
                 ],
               ),
             ),

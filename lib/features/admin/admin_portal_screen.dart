@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shared/role_guard.dart';
 import '../../core/services/app_state_service.dart';
 import '../../core/i18n/app_translations.dart';
 import '../../core/models/learning_models.dart';
@@ -42,6 +43,9 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    if (!AppStateService.instance.isAdmin) {
+      return const ForbiddenScreen();
+    }
     final state = AppStateService.instance;
     final i18n = I18nService.instance;
     final colorScheme = Theme.of(context).colorScheme;
@@ -549,18 +553,60 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> with SingleTicker
             ElevatedButton(
               onPressed: () {
                 if (nameC.text.isNotEmpty && emailC.text.isNotEmpty) {
-                  state.createUser(
+                  final result = state.createUser(
                     name: nameC.text.trim(),
                     email: emailC.text.trim(),
                     role: selectedRole,
                   );
                   Navigator.pop(ctx);
+                  if (result.success) {
+                    _showCredentialsDialog(context, state);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result.message ?? 'تعذّر إنشاء الحساب'),
+                      ),
+                    );
+                  }
                 }
               },
               child: Text(i18n.t('create_user')),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCredentialsDialog(BuildContext context, AppStateService state) {
+    final username = state.lastCreatedUsername ?? '';
+    final password = state.lastCreatedPassword ?? '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تم إنشاء الحساب'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('سلّم هذه البيانات للمستخدم — لن تُعرض مرة أخرى:'),
+            const SizedBox(height: Space.md),
+            SelectableText('اسم المستخدم: $username',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: Space.sm),
+            SelectableText('كلمة السر المؤقتة: $password',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: Space.md),
+            const Text('سيُطلب منه تغييرها عند أول دخول.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('تم'),
+          ),
+        ],
       ),
     );
   }

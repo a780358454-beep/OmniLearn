@@ -286,7 +286,7 @@ class InitialCurriculaData {
                       QuizQuestion(
                         id: 'q_res_1',
                         type: QuizType.singleChoice,
-                        prompt: 'في دراسة تقيس أثر تطبيق كود سفير على سرعة فهم الطلاب، ما هو المتغير المستقل؟',
+                        prompt: 'في دراسة تقيس أثر تطبيق OmniLearn على سرعة فهم الطلاب، ما هو المتغير المستقل؟',
                         explanation: 'المتغير المستقل هو الأداة أو التدخل التجريبي الذي يطبقه الباحث (التطبيق).',
                         optionsList: [
                           QuizOption(text: 'درجات الطلاب وسرعة إجابتهم', isCorrect: false, whyWrong: 'درجات الطلاب وسرعتهم هي المتغير التابع (النتيجة المقاسة).'),

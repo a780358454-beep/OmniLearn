@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.codesphere"
+        applicationId "com.omnilearn.app"
         minSdk = 21
         targetSdk = 34
         versionCode flutterVersionCode.toInteger()
