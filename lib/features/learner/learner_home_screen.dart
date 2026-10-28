@@ -317,7 +317,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                             '$doneActiveLessons ${i18n.t('completed_of_total')} $totalActiveLessons دروس',
                             style: AppTypography.caption.copyWith(
                               color: cs.onSurface,
-                              fontWeight: FontWeight.w640,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
