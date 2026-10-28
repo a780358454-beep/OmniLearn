@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/app_state_service.dart';
 import '../../core/design/design_tokens.dart';
+import '../learner/learner_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -53,8 +54,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      // الجلسة بدأت بالفعل؛ يكفي الرجوع إلى البوابة
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LearnerHomeScreen()),
+        (route) => false,
+      );
+      return;
     } else {
       setState(() {
         _loading = false;

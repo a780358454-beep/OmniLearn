@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/app_state_service.dart';
 import '../../core/design/design_tokens.dart';
+import '../learner/learner_home_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -37,9 +38,17 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (!mounted) return;
+    if (result.success) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LearnerHomeScreen()),
+        (route) => false,
+      );
+      return;
+    }
+
     setState(() {
       _loading = false;
-      if (!result.success) _error = result.message;
+      _error = result.message;
     });
   }
 

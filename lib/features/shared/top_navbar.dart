@@ -4,6 +4,7 @@ import '../../core/i18n/app_translations.dart';
 import '../../core/models/learning_models.dart';
 import '../../core/design/design_tokens.dart';
 import '../auth/change_password_screen.dart';
+import '../auth/login_screen.dart';
 
 class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
   const TopNavbar({Key? key}) : super(key: key);
@@ -140,6 +141,12 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                   );
                 } else if (value == 'logout') {
                   await state.logout();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
                 }
               },
               shape: RoundedRectangleBorder(

@@ -551,7 +551,7 @@ class AppStateService extends ChangeNotifier {
 
   // --- التصدير والاستيراد ---
   String exportActiveCurriculumJson() {
-    return const JsonEncoder.withIndent(' ').convert(activeCurriculum.toJson());
+    return JsonEncoder.withIndent('  ').convert(activeCurriculum.toJson());
   }
 
   bool importCurriculumFromJson(String jsonContent) {

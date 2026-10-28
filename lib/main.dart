@@ -104,6 +104,17 @@ class _RootGateState extends State<RootGate> {
 
   @override
   Widget build(BuildContext context) {
+    // نستمع للخدمة هنا مباشرة.
+    // السبب: RootGate يُنشأ كـ const، والـ const canonicalized — فحين يعيد
+    // الأب البناء يُعدّ الـ widget "نفسه" ولا يُعاد بناء الشجرة، فلا تنتقل
+    // الشاشة بعد تسجيل الدخول إلا بإعادة تشغيل التطبيق.
+    return AnimatedBuilder(
+      animation: AppStateService.instance,
+      builder: (context, _) => _buildGate(context),
+    );
+  }
+
+  Widget _buildGate(BuildContext context) {
     final state = AppStateService.instance;
 
     if (state.isReady) {
