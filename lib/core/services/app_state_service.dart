@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import '../models/learning_models.dart';
 import '../repositories/storage_repository.dart';
 import '../security/password_hasher.dart';
+import 'cloud_sync_service.dart';
 import '../../data/initial_curricula.dart';
 
 /// نتيجة أي عملية مصادقة — رسالة واضحة بدل استثناء.
@@ -70,7 +72,7 @@ class AppStateService extends ChangeNotifier {
               name: 'مسار فارغ',
               code: 'EMPTY',
               description: '',
-              category: DomainCategory.general,
+              category: DomainCategory.computing,
               iconName: 'folder',
             ),
     );
@@ -136,6 +138,12 @@ class AppStateService extends ChangeNotifier {
     if (_isAuthenticated) {
       _touchStreak();
     }
+
+    // تهيئة خدمة المزامنة السحابية ومحاولة مزامنة الخلفية
+    try {
+      await CloudSyncService.instance.ensureInitialized();
+      unawaited(_triggerBackgroundSync());
+    } catch (_) {}
 
     } catch (e) {
       debugPrint('Init error: $e');
@@ -453,6 +461,7 @@ class AppStateService extends ChangeNotifier {
             module.lessons[lIndex].status = status;
             StorageRepository.saveCurricula(_curricula);
             notifyListeners();
+            unawaited(pushCurriculaToCloud());
             return;
           }
         }
@@ -482,6 +491,7 @@ class AppStateService extends ChangeNotifier {
     _activeCurriculumId = newCurriculum.id;
     StorageRepository.saveCurricula(_curricula);
     notifyListeners();
+    unawaited(pushCurriculaToCloud());
   }
 
   void setActiveCurriculum(String curriculumId) {
@@ -513,6 +523,7 @@ class AppStateService extends ChangeNotifier {
     );
     StorageRepository.saveCurricula(_curricula);
     notifyListeners();
+    unawaited(pushCurriculaToCloud());
   }
 
   void addModuleToCourse({
@@ -534,17 +545,350 @@ class AppStateService extends ChangeNotifier {
     );
     StorageRepository.saveCurricula(_curricula);
     notifyListeners();
+    unawaited(pushCurriculaToCloud());
   }
 
   void addLessonToModule({
     required String courseId,
     required String moduleId,
     required Lesson lesson,
+    bool submitForReview = true,
   }) {
     if (!canAuthor) return;
     final course = activeCurriculum.courses.firstWhere((c) => c.id == courseId);
     final module = course.modules.firstWhere((m) => m.id == moduleId);
-    module.lessons.add(lesson);
+
+    // ربط هوية المؤلف
+    lesson.authorId ??= _currentUser.id;
+    lesson.authorName ??= _currentUser.name;
+
+    // قيد صارم: لا نشر مباشر بدون اعتماد الإدارة
+    if (!isAdmin) {
+      lesson.status = submitForReview
+          ? ContentStatus.pendingReview
+          : ContentStatus.localDraft;
+      if (submitForReview) {
+        lesson.submittedAt = DateTime.now();
+      }
+    }
+
+    final existingIndex = module.lessons.indexWhere((l) => l.id == lesson.id);
+    if (existingIndex >= 0) {
+      module.lessons[existingIndex] = lesson;
+    } else {
+      module.lessons.add(lesson);
+    }
+
+    StorageRepository.saveCurricula(_curricula);
+    notifyListeners();
+
+    if (submitForReview) {
+      unawaited(pushCurriculaToCloud());
+    }
+  }
+
+  // --- دورة المساهمة المجتمعية والمراجعة والاعتماد (Moderation) ---
+  List<Lesson> getPendingReviewLessons() {
+    final list = <Lesson>[];
+    for (final c in _curricula) {
+      for (final course in c.courses) {
+        for (final m in course.modules) {
+          for (final l in m.lessons) {
+            if (l.isPendingReview) {
+              list.add(l);
+            }
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  List<Lesson> getUserContributions(String userId) {
+    final list = <Lesson>[];
+    for (final c in _curricula) {
+      for (final course in c.courses) {
+        for (final m in course.modules) {
+          for (final l in m.lessons) {
+            if (l.authorId == userId || l.creatorId == userId) {
+              list.add(l);
+            }
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  // --- إدارة المسودات المحلية وطابور المزامنة الذكي (Offline Drafts Queue) ---
+  List<Lesson> getLocalDrafts() {
+    final list = <Lesson>[];
+    for (final c in _curricula) {
+      for (final course in c.courses) {
+        for (final m in course.modules) {
+          for (final l in m.lessons) {
+            if (l.isLocalDraft && (l.authorId == _currentUser.id || l.creatorId == _currentUser.id || isAdmin)) {
+              list.add(l);
+            }
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  bool get hasLocalDrafts => getLocalDrafts().isNotEmpty;
+
+  /// رفع ومزامنة كافة المسودات المحلية دفعة واحدة إلى السحابة بحالة قيد المراجعة
+  Future<int> syncAllLocalDrafts() async {
+    final drafts = getLocalDrafts();
+    if (drafts.isEmpty) return 0;
+
+    int syncedCount = 0;
+    final now = DateTime.now();
+
+    for (final lesson in drafts) {
+      lesson.status = ContentStatus.pendingReview;
+      lesson.submittedAt = now;
+      syncedCount++;
+    }
+
+    await StorageRepository.saveCurricula(_curricula);
+    setNotification('🚀 تم رفع $syncedCount مسودة بنجاح للمراجعة والاعتماد السحابي!');
+    notifyListeners();
+    unawaited(pushCurriculaToCloud());
+    return syncedCount;
+  }
+
+  /// البحث عن سياق الدرس (المسار، المادة، الوحدة) لإعادة التعديل والاعتماد
+  Map<String, dynamic>? findLessonContext(String lessonId) {
+    for (final cur in _curricula) {
+      for (final course in cur.courses) {
+        for (final module in course.modules) {
+          final lIndex = module.lessons.indexWhere((l) => l.id == lessonId);
+          if (lIndex != -1) {
+            return {
+              'curriculum': cur,
+              'course': course,
+              'module': module,
+              'lesson': module.lessons[lIndex],
+            };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /// بنمط هرمش والتعلم المفتوح (Harmash Open-Access): كافة الدروس المعتمدة مفتوحة للتصفح المباشر دون قفل
+  bool isLessonLocked(Course course, String lessonId) {
+    return false; // وصول حر ومفتوح لجميع الدروس البرمجية
+  }
+
+  /// القفل محصور فقط في الاختبار النهائي المانح للشهادة
+  bool isCourseCertificateUnlocked(Course course) {
+    final allApproved = <Lesson>[];
+    for (final m in course.modules) {
+      for (final l in m.lessons) {
+        if (l.isApproved) allApproved.add(l);
+      }
+    }
+    if (allApproved.isEmpty) return false;
+    return allApproved.every((l) => isLessonCompleted(l.id));
+  }
+
+  void approveLesson(String lessonId) {
+    if (!isAdmin) return;
+    for (final c in _curricula) {
+      for (final course in c.courses) {
+        for (final m in course.modules) {
+          final idx = m.lessons.indexWhere((l) => l.id == lessonId);
+          if (idx >= 0) {
+            final lesson = m.lessons[idx];
+            // تطبيق النسخة الظلية للتعديل ذرياً (Atomic Shadow Swap)
+            if (lesson.hasShadowUpdate) {
+              final payload = lesson.pendingUpdatePayload!;
+              if (payload['title'] != null) lesson.title = payload['title'];
+              if (payload['titleEn'] != null) lesson.titleEn = payload['titleEn'];
+              if (payload['summary'] != null) lesson.summary = payload['summary'];
+              if (payload['summaryEn'] != null) lesson.summaryEn = payload['summaryEn'];
+              if (payload['articleContent'] != null) lesson.articleContent = payload['articleContent'];
+              if (payload['articleContentEn'] != null) lesson.articleContentEn = payload['articleContentEn'];
+              if (payload['cards'] != null) {
+                lesson.cards = (payload['cards'] as List).map((c) => LessonCard.fromJson(c)).toList();
+              }
+              if (payload['quizzes'] != null) {
+                lesson.quizzes = (payload['quizzes'] as List).map((q) => QuizQuestion.fromJson(q)).toList();
+              }
+              lesson.pendingUpdatePayload = null;
+            }
+
+            lesson.status = ContentStatus.approved;
+            lesson.reviewedAt = DateTime.now();
+            lesson.adminComment = null;
+            StorageRepository.saveCurricula(_curricula);
+            setNotification('🎉 تم اعتماد ونشر الدرس "${lesson.title}" بنجاح!');
+            notifyListeners();
+            unawaited(pushCurriculaToCloud());
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  /// إضافة رسالة تفاعلية داخل سلسلة مراجعة الدرس (Two-way Review Thread)
+  void addReviewMessage({required String lessonId, required String message}) {
+    final clean = message.trim();
+    if (clean.isEmpty) return;
+
+    for (final c in _curricula) {
+      for (final course in c.courses) {
+        for (final m in course.modules) {
+          final idx = m.lessons.indexWhere((l) => l.id == lessonId);
+          if (idx >= 0) {
+            final lesson = m.lessons[idx];
+            lesson.reviewThread.add(
+              ReviewMessage(
+                id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+                senderId: _currentUser.id,
+                senderName: _currentUser.name.isNotEmpty ? _currentUser.name : 'مستخدم',
+                senderRole: _currentUser.role,
+                message: clean,
+              ),
+            );
+            StorageRepository.saveCurricula(_curricula);
+            notifyListeners();
+            unawaited(pushCurriculaToCloud());
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  void requestLessonRevision(String lessonId, String comment) {
+    if (!isAdmin) return;
+    for (final c in _curricula) {
+      for (final course in c.courses) {
+        for (final m in course.modules) {
+          final idx = m.lessons.indexWhere((l) => l.id == lessonId);
+          if (idx >= 0) {
+            m.lessons[idx].status = ContentStatus.needsRevision;
+            m.lessons[idx].adminComment = comment;
+            m.lessons[idx].reviewedAt = DateTime.now();
+            StorageRepository.saveCurricula(_curricula);
+            setNotification('⚠️ تم إرسال ملاحظات التعديل للدرس "${m.lessons[idx].title}".');
+            notifyListeners();
+            unawaited(pushCurriculaToCloud());
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  void rejectLesson(String lessonId, String reason) {
+    if (!isAdmin) return;
+    for (final c in _curricula) {
+      for (final course in c.courses) {
+        for (final m in course.modules) {
+          final idx = m.lessons.indexWhere((l) => l.id == lessonId);
+          if (idx >= 0) {
+            m.lessons[idx].status = ContentStatus.rejected;
+            m.lessons[idx].adminComment = reason;
+            m.lessons[idx].reviewedAt = DateTime.now();
+            StorageRepository.saveCurricula(_curricula);
+            setNotification('تم رفض الدرس "${m.lessons[idx].title}".');
+            notifyListeners();
+            unawaited(pushCurriculaToCloud());
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  // --- الإشعارات الخفيفة والرسائل التحفيزية ---
+  String? _notificationMessage;
+  String? get notificationMessage => _notificationMessage;
+
+  void setNotification(String message) {
+    _notificationMessage = message;
+    notifyListeners();
+  }
+
+  void dismissNotification() {
+    _notificationMessage = null;
+    notifyListeners();
+  }
+
+  int _countPublishedLessons() {
+    int total = 0;
+    for (final c in _curricula) {
+      for (final crs in c.courses) {
+        for (final m in crs.modules) {
+          for (final l in m.lessons) {
+            if (l.isApproved) total++;
+          }
+        }
+      }
+    }
+    return total;
+  }
+
+  // --- الربط والمزامنة السحابية (Cloud Sync) ---
+  Future<void> _triggerBackgroundSync() async {
+    try {
+      final remote = await CloudSyncService.instance.pullCurricula();
+      if (remote != null && remote.isNotEmpty) {
+        mergeRemoteCurricula(remote);
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> pushCurriculaToCloud() async {
+    return CloudSyncService.instance.pushCurricula(_curricula);
+  }
+
+  Future<bool> pullCurriculaFromCloud() async {
+    final remote = await CloudSyncService.instance.pullCurricula();
+    if (remote != null && remote.isNotEmpty) {
+      mergeRemoteCurricula(remote);
+      return true;
+    }
+    return false;
+  }
+
+  void mergeRemoteCurricula(List<CurriculumDomain> remoteList) {
+    final prevCount = _countPublishedLessons();
+
+    for (final remote in remoteList) {
+      final idx = _curricula.indexWhere((c) => c.id == remote.id);
+      if (idx >= 0) {
+        _curricula[idx] = remote;
+      } else {
+        _curricula.add(remote);
+      }
+    }
+
+    final newCount = _countPublishedLessons();
+    if (newCount > prevCount) {
+      setNotification('🔥 تمت إضافة دروس برمجية جديدة، واصل تقدمك!');
+    }
+
+    // فحص تحديثات مساهمات المستخدم الحالي
+    final myContributions = getUserContributions(_currentUser.id);
+    for (final lesson in myContributions) {
+      if (lesson.isApproved && lesson.reviewedAt != null && DateTime.now().difference(lesson.reviewedAt!).inHours < 24) {
+        setNotification('🎉 تم اعتماد ونشر درسك "${lesson.title}" من قِبل الإدارة!');
+        break;
+      } else if (lesson.isNeedsRevision && lesson.adminComment != null) {
+        setNotification('⚠️ درسك "${lesson.title}" يحتاج لتعديل وفق ملاحظات الإدارة.');
+        break;
+      }
+    }
+
     StorageRepository.saveCurricula(_curricula);
     notifyListeners();
   }
@@ -607,10 +951,19 @@ class AppStateService extends ChangeNotifier {
   void completeLesson(String lessonId, int earnedXp) {
     if (!_isAuthenticated) return;
     if (_currentUser.completedLessonIds.contains(lessonId)) return;
+
+    final oldLevel = _currentUser.level;
     _currentUser.completedLessonIds.add(lessonId);
     _currentUser.xp += earnedXp;
     _touchStreak();
     _persistUserProgress();
+
+    final newLevel = _currentUser.level;
+    if (newLevel > oldLevel) {
+      setNotification('🚀 ارتقاء للمستوى $newLevel! أصبحت الآن "${_currentUser.levelTitle}". واصل تميزك!');
+    } else {
+      setNotification('🎯 أحسنت! أكملت الدرس بنجاح وحصلت على +$earnedXp XP!');
+    }
     notifyListeners();
   }
 

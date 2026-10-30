@@ -9,6 +9,8 @@ class StorageRepository {
   static const String _keyAttempts = 'omni_attempts_v2';
   static const String _keyUsers = 'omni_users_v1';
   static const String _keySession = 'omni_session_v1';
+  static const String _keyCloudEndpoint = 'omni_cloud_endpoint_v1';
+  static const String _keyLastSync = 'omni_last_sync_v1';
 
   // --- 1. حفظ واسترجاع الهوية والإعدادات ---
   static Future<void> saveBranding(AppBrandingConfig branding) async {
@@ -151,5 +153,32 @@ class StorageRepository {
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keySession);
+  }
+
+  // --- 7. الربط السحابي (Cloud Sync) ---
+  static Future<void> saveCloudEndpoint(String endpoint) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCloudEndpoint, endpoint.trim());
+  }
+
+  static Future<String?> loadCloudEndpoint() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyCloudEndpoint);
+  }
+
+  static Future<void> saveLastSyncTime(DateTime time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLastSync, time.toIso8601String());
+  }
+
+  static Future<DateTime?> loadLastSyncTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyLastSync);
+    if (raw == null) return null;
+    try {
+      return DateTime.parse(raw);
+    } catch (_) {
+      return null;
+    }
   }
 }

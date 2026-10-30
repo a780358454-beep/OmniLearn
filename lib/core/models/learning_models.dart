@@ -10,13 +10,18 @@ enum UserRole {
   student,
 }
 
-/// دورة حياة نشر المحتوى (Governance & Publishing Lifecycle)
+/// دورة حياة نشر المحتوى واعتماد المساهمات المجتمعية
 enum ContentStatus {
-  draft,       // مسودة
-  inReview,    // قيد المراجعة
-  published,   // منشور ومتاح للطلاب
-  suspended,   // معلق بقرار إداري
-  archived,    // مؤرشف
+  localDraft,    // مسودة محلية (لم ترفع للسحابة بعد)
+  pendingReview, // قيد المراجعة والاعتماد من الإدارة
+  needsRevision, // طلب تعديل مع تعليق وتوجيهات الإدارة
+  approved,      // معتمد ومنشور رسمياً لكافة الطلاب
+  published,     // منشور (مرادف لـ approved للتوافق الكامل)
+  draft,         // مرادف لـ localDraft
+  inReview,      // مرادف لـ pendingReview
+  rejected,      // مرفوض من الإدارة مع ذكر السبب
+  suspended,     // معلق بقرار إداري
+  archived,      // مؤرشف
 }
 
 /// الأنواع السبعة للاختبارات التفاعلية
@@ -30,13 +35,13 @@ enum QuizType {
   caseStudy,      // تحدي دراسة حالة وسيناريو تحليلي
 }
 
-/// تصنيفات المجالات والمناهج
+/// تصنيفات المجالات والمسارات البرمجية حصراً (Coding & CS Only)
 enum DomainCategory {
   computing,
-  medical,
-  languages,
-  engineering,
-  general,
+  softwareEngineering,
+  webDevelopment,
+  mobileDevelopment,
+  algorithms,
 }
 
 /// مراحل محاولات التعلم (مفيدة للدراسات البحثية والتقييم القبلي والبعدي)
@@ -255,7 +260,31 @@ class AppUser {
 
   bool get isAdmin => role == UserRole.admin;
   bool get isCreator => role == UserRole.creator;
-  bool get canAuthor => role == UserRole.admin || role == UserRole.creator;
+  /// فتح التأليف والمساهمة لجميع المستخدمين (طلاب ومشرفين ومدراء) بنظام اعتماد
+  bool get canAuthor => true;
+  bool get canContribute => true;
+
+  /// حساب المستوى ديناميكياً بناءً على النقاط (كل 100 نقطة خبرة تمنح مستوى جديد)
+  int get level => (xp ~/ 100) + 1;
+
+  /// النقاط المحققة داخل المستوى الحالي
+  int get xpInCurrentLevel => xp % 100;
+
+  /// النقاط المتبقية للارتقاء للمستوى التالي
+  int get xpNeededForNextLevel => 100 - xpInCurrentLevel;
+
+  /// النسبة المئوية للتقدم نحو المستوى التالي (بين 0.0 و 1.0)
+  double get levelProgress => (xpInCurrentLevel / 100.0).clamp(0.0, 1.0);
+
+  /// اللقب والرتبة البرمجية التنافسية بحسب المستوى
+  String get levelTitle {
+    if (level >= 20) return 'خبير برمجيات أول (Principal Engineer)';
+    if (level >= 15) return 'مهندس معماري نظم (Software Architect)';
+    if (level >= 10) return 'مطور متقدم (Senior Developer)';
+    if (level >= 5) return 'مطور متوسط (Mid-level Developer)';
+    if (level >= 2) return 'مطور مبتدئ (Junior Developer)';
+    return 'مستكشف كود (Code Explorer)';
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -310,6 +339,8 @@ class LessonCard {
   final String? codeSnippet;
   final String? visualHint;
   final String? calloutType;
+  final String? titleEn;
+  final String? contentEn;
 
   LessonCard({
     required this.title,
@@ -317,7 +348,23 @@ class LessonCard {
     this.codeSnippet,
     this.visualHint,
     this.calloutType,
+    this.titleEn,
+    this.contentEn,
   });
+
+  String localizedTitle(bool isArabic) {
+    if (isArabic || titleEn == null || titleEn!.trim().isEmpty) {
+      return title;
+    }
+    return titleEn!;
+  }
+
+  String localizedContent(bool isArabic) {
+    if (isArabic || contentEn == null || contentEn!.trim().isEmpty) {
+      return content;
+    }
+    return contentEn!;
+  }
 
   Map<String, dynamic> toJson() => {
     'title': title,
@@ -325,6 +372,8 @@ class LessonCard {
     'codeSnippet': codeSnippet,
     'visualHint': visualHint,
     'calloutType': calloutType,
+    'titleEn': titleEn,
+    'contentEn': contentEn,
   };
 
   factory LessonCard.fromJson(Map<String, dynamic> json) => LessonCard(
@@ -333,6 +382,8 @@ class LessonCard {
     codeSnippet: json['codeSnippet'],
     visualHint: json['visualHint'],
     calloutType: json['calloutType'],
+    titleEn: json['titleEn'],
+    contentEn: json['contentEn'],
   );
 }
 
@@ -342,6 +393,8 @@ class QuizQuestion {
   final QuizType type;
   final String prompt;
   final String explanation;
+  final String? promptEn;
+  final String? explanationEn;
   final ExplanationLevels? explanationLevels;
   final List<QuizOption> optionsList;
 
@@ -361,7 +414,7 @@ class QuizQuestion {
   // لأسئلة دراسة الحالة
   final String? caseScenario;
 
-  // توثيق المصدر للأخلاقيات والمصادر الطبية
+  // توثيق المصدر للأخلاقيات والبرمجة
   final String? source;
   final String? reviewedBy;
 
@@ -370,6 +423,8 @@ class QuizQuestion {
     required this.type,
     required this.prompt,
     required this.explanation,
+    this.promptEn,
+    this.explanationEn,
     this.explanationLevels,
     List<QuizOption>? optionsList,
     List<String>? options,
@@ -387,6 +442,20 @@ class QuizQuestion {
        fillAcceptedAnswers = fillAcceptedAnswers ?? [],
        pairs = pairs ?? {};
 
+  String localizedPrompt(bool isArabic) {
+    if (isArabic || promptEn == null || promptEn!.trim().isEmpty) {
+      return prompt;
+    }
+    return promptEn!;
+  }
+
+  String localizedExplanation(bool isArabic) {
+    if (isArabic || explanationEn == null || explanationEn!.trim().isEmpty) {
+      return explanation;
+    }
+    return explanationEn!;
+  }
+
   static List<QuizOption> _buildOptions(List<String>? options, List<int>? correctIndices) {
     if (options == null) return [];
     final correctSet = (correctIndices ?? []).toSet();
@@ -395,7 +464,7 @@ class QuizQuestion {
       return QuizOption(
         text: options[idx],
         isCorrect: isCorr,
-        whyWrong: isCorr ? '' : 'هذا الخيار غير صحيح وفق السياق الهندسي/العلمي.',
+        whyWrong: isCorr ? '' : 'هذا الخيار غير صحيح وفق السياق الهندسي والبرمجي.',
       );
     });
   }
@@ -415,6 +484,8 @@ class QuizQuestion {
     'type': type.name,
     'prompt': prompt,
     'explanation': explanation,
+    'promptEn': promptEn,
+    'explanationEn': explanationEn,
     'explanationLevels': explanationLevels?.toJson(),
     'optionsList': optionsList.map((o) => o.toJson()).toList(),
     'orderItems': orderItems,
@@ -435,6 +506,8 @@ class QuizQuestion {
     ),
     prompt: json['prompt'] ?? '',
     explanation: json['explanation'] ?? '',
+    promptEn: json['promptEn'],
+    explanationEn: json['explanationEn'],
     explanationLevels: json['explanationLevels'] != null 
         ? ExplanationLevels.fromJson(json['explanationLevels']) 
         : null,
@@ -452,16 +525,74 @@ class QuizQuestion {
   );
 }
 
-/// نموذج الدرس التفاعلي
+/// نمط عرض محتوى الدرس: بطاقات تفاعلية أو مقال مرجعي عميق على طراز هرمش
+enum LessonDisplayMode {
+  cards,          // بطاقات تفاعلية متتابعة
+  harmashArticle, // مقال مرجعي شامل غني بالأمثلة والأكواد
+}
+
+/// رسالة داخل سلسلة محادثات المراجعة التفاعلية بين المساهم والإدارة
+class ReviewMessage {
+  final String id;
+  final String senderId;
+  final String senderName;
+  final UserRole senderRole;
+  final String message;
+  final DateTime sentAt;
+
+  ReviewMessage({
+    required this.id,
+    required this.senderId,
+    required this.senderName,
+    required this.senderRole,
+    required this.message,
+    DateTime? sentAt,
+  }) : sentAt = sentAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'senderId': senderId,
+    'senderName': senderName,
+    'senderRole': senderRole.name,
+    'message': message,
+    'sentAt': sentAt.toIso8601String(),
+  };
+
+  factory ReviewMessage.fromJson(Map<String, dynamic> json) => ReviewMessage(
+    id: json['id'] ?? '',
+    senderId: json['senderId'] ?? '',
+    senderName: json['senderName'] ?? '',
+    senderRole: UserRole.values.firstWhere(
+      (e) => e.name == json['senderRole'],
+      orElse: () => UserRole.student,
+    ),
+    message: json['message'] ?? '',
+    sentAt: DateTime.tryParse(json['sentAt'] ?? '') ?? DateTime.now(),
+  );
+}
+
+/// نموذج الدرس التفاعلي مع دعم دورة المراجعة والاعتماد والمساهمة المجتمعية
 class Lesson {
   final String id;
   final String moduleId;
   String title;
   String summary;
+  String? titleEn;
+  String? summaryEn;
   int orderIndex;
   int xpReward;
   ContentStatus status;
+  LessonDisplayMode displayMode;
+  String? articleContent;   // نص المقال المرجعي الشامل (Harmash Style)
+  String? articleContentEn; // نص المقال باللغة الإنجليزية
+  Map<String, dynamic>? pendingUpdatePayload; // حمولة التعديل الظلي لحماية النسخة المنشورة (Shadow Versioning)
+  List<ReviewMessage> reviewThread; // سلسلة رسائل المراجعة التفاعلية
   String creatorId;
+  String? authorId;
+  String? authorName;
+  String? adminComment; // تعليق وملاحظات الإدارة عند طلب تعديل أو رفض
+  DateTime? submittedAt;
+  DateTime? reviewedAt;
   List<LessonCard> cards;
   List<QuizQuestion> quizzes;
 
@@ -470,24 +601,82 @@ class Lesson {
     required this.moduleId,
     required this.title,
     required this.summary,
+    this.titleEn,
+    this.summaryEn,
     required this.orderIndex,
     this.xpReward = 50,
     this.status = ContentStatus.published,
+    this.displayMode = LessonDisplayMode.cards,
+    this.articleContent,
+    this.articleContentEn,
+    this.pendingUpdatePayload,
+    List<ReviewMessage>? reviewThread,
     this.creatorId = 'admin',
+    this.authorId,
+    this.authorName,
+    this.adminComment,
+    this.submittedAt,
+    this.reviewedAt,
     List<LessonCard>? cards,
     List<QuizQuestion>? quizzes,
   }) : cards = cards ?? [],
-       quizzes = quizzes ?? [];
+       quizzes = quizzes ?? [],
+       reviewThread = reviewThread ?? [];
+
+  bool get isApproved => status == ContentStatus.approved || status == ContentStatus.published;
+  bool get isPendingReview => status == ContentStatus.pendingReview || status == ContentStatus.inReview;
+  bool get isLocalDraft => status == ContentStatus.localDraft || status == ContentStatus.draft;
+  bool get isNeedsRevision => status == ContentStatus.needsRevision;
+  bool get isRejected => status == ContentStatus.rejected;
+  bool get hasShadowUpdate => pendingUpdatePayload != null && pendingUpdatePayload!.isNotEmpty;
+
+  /// تصنيف نوع العقدة في الشجرة التعليمية (Sololearn-style Node Types)
+  bool get isCodeChallenge => cards.any((c) => c.codeSnippet != null && c.codeSnippet!.trim().isNotEmpty) || (articleContent != null && articleContent!.contains('```'));
+  bool get isMilestoneQuiz => quizzes.length >= 3 || (cards.isEmpty && articleContent == null && quizzes.isNotEmpty);
+  bool get isTheory => !isMilestoneQuiz && !isCodeChallenge;
+
+  String localizedTitle(bool isArabic) {
+    if (isArabic || titleEn == null || titleEn!.trim().isEmpty) {
+      return title;
+    }
+    return titleEn!;
+  }
+
+  String localizedSummary(bool isArabic) {
+    if (isArabic || summaryEn == null || summaryEn!.trim().isEmpty) {
+      return summary;
+    }
+    return summaryEn!;
+  }
+
+  String localizedArticle(bool isArabic) {
+    if (isArabic || articleContentEn == null || articleContentEn!.trim().isEmpty) {
+      return articleContent ?? '';
+    }
+    return articleContentEn!;
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'moduleId': moduleId,
     'title': title,
     'summary': summary,
+    'titleEn': titleEn,
+    'summaryEn': summaryEn,
     'orderIndex': orderIndex,
     'xpReward': xpReward,
     'status': status.name,
+    'displayMode': displayMode.name,
+    'articleContent': articleContent,
+    'articleContentEn': articleContentEn,
+    'pendingUpdatePayload': pendingUpdatePayload,
+    'reviewThread': reviewThread.map((r) => r.toJson()).toList(),
     'creatorId': creatorId,
+    'authorId': authorId,
+    'authorName': authorName,
+    'adminComment': adminComment,
+    'submittedAt': submittedAt?.toIso8601String(),
+    'reviewedAt': reviewedAt?.toIso8601String(),
     'cards': cards.map((c) => c.toJson()).toList(),
     'quizzes': quizzes.map((q) => q.toJson()).toList(),
   };
@@ -497,13 +686,32 @@ class Lesson {
     moduleId: json['moduleId'] ?? '',
     title: json['title'] ?? '',
     summary: json['summary'] ?? '',
+    titleEn: json['titleEn'],
+    summaryEn: json['summaryEn'],
     orderIndex: json['orderIndex'] ?? 0,
     xpReward: json['xpReward'] ?? 50,
     status: ContentStatus.values.firstWhere(
       (e) => e.name == json['status'], 
       orElse: () => ContentStatus.published
     ),
+    displayMode: LessonDisplayMode.values.firstWhere(
+      (e) => e.name == json['displayMode'],
+      orElse: () => LessonDisplayMode.cards,
+    ),
+    articleContent: json['articleContent'],
+    articleContentEn: json['articleContentEn'],
+    pendingUpdatePayload: json['pendingUpdatePayload'] != null
+        ? Map<String, dynamic>.from(json['pendingUpdatePayload'])
+        : null,
+    reviewThread: (json['reviewThread'] as List? ?? [])
+        .map((r) => ReviewMessage.fromJson(r))
+        .toList(),
     creatorId: json['creatorId'] ?? 'admin',
+    authorId: json['authorId'],
+    authorName: json['authorName'],
+    adminComment: json['adminComment'],
+    submittedAt: json['submittedAt'] != null ? DateTime.tryParse(json['submittedAt']) : null,
+    reviewedAt: json['reviewedAt'] != null ? DateTime.tryParse(json['reviewedAt']) : null,
     cards: (json['cards'] as List? ?? []).map((c) => LessonCard.fromJson(c)).toList(),
     quizzes: (json['quizzes'] as List? ?? []).map((q) => QuizQuestion.fromJson(q)).toList(),
   );
@@ -647,7 +855,7 @@ class CurriculumDomain {
       description: json['description'] ?? '',
       category: DomainCategory.values.firstWhere(
         (e) => e.name == json['category'], 
-        orElse: () => DomainCategory.general
+        orElse: () => DomainCategory.computing,
       ),
       iconName: json['iconName'] ?? 'domain',
       schemaVersion: version,

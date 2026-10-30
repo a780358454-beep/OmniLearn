@@ -78,12 +78,12 @@ class _QuizArenaScreenState extends State<QuizArenaScreen> {
         appBar: AppBar(title: Text(widget.lesson.title)),
         body: EmptyState(
           icon: Icons.assignment_outlined,
-          title: 'لا توجد أسئلة مضافة لهذا الدرس',
-          reason: 'يمكنك مراجعة محتوى الشرح أو إكمال الدرس مباشرة.',
+          title: i18n.t('empty_quizzes_title'),
+          reason: i18n.t('empty_quizzes_reason'),
           actionLabel: i18n.t('finish_lesson'),
           onAction: () {
             AppStateService.instance.completeLesson(widget.lesson.id, widget.lesson.xpReward);
-            Navigator.pop(context);
+            Navigator.pop(context, true);
           },
         ),
       );
@@ -131,7 +131,7 @@ class _QuizArenaScreenState extends State<QuizArenaScreen> {
 
             // نص السؤال
             Text(
-              currentQuiz.prompt,
+              currentQuiz.localizedPrompt(i18n.isArabic),
               style: AppTypography.questionPrompt.copyWith(color: colorScheme.onSurface),
             ),
             const SizedBox(height: Space.xl),
@@ -467,7 +467,7 @@ class _QuizArenaScreenState extends State<QuizArenaScreen> {
               ),
               const SizedBox(height: Space.xs),
               Text(
-                q.explanation,
+                q.localizedExplanation(i18n.isArabic),
                 style: AppTypography.bodySmall.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               if (!_isAnswerCorrect && _selectedWhyWrong.isNotEmpty) ...[
@@ -611,9 +611,9 @@ class _QuizArenaScreenState extends State<QuizArenaScreen> {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.pop(context);
+                Navigator.pop(context, true);
               },
-              child: Text(i18n.t('continue_lesson')),
+              child: Text(i18n.t('finish_and_exit')),
             ),
           ),
         ],

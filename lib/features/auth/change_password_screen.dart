@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/app_state_service.dart';
+import '../../core/i18n/app_translations.dart';
 import '../../core/design/design_tokens.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -27,10 +28,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Future<void> _submit() async {
+    final i18n = I18nService.instance;
     if (_loading) return;
 
     if (_newController.text != _confirmController.text) {
-      setState(() => _error = 'كلمتا السر الجديدتان غير متطابقتين');
+      setState(() => _error = i18n.t('passwords_dont_match'));
       return;
     }
 
@@ -48,7 +50,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تغيير كلمة السر بنجاح')),
+        SnackBar(content: Text(i18n.t('password_changed_success'))),
       );
       Navigator.pop(context);
     } else {
@@ -62,11 +64,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final i18n = I18nService.instance;
     final mustChange =
         AppStateService.instance.currentUser.mustChangePassword;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('تغيير كلمة السر')),
+      appBar: AppBar(title: Text(i18n.t('change_password'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(Space.xl),
@@ -86,7 +89,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       const SizedBox(width: Space.sm),
                       Expanded(
                         child: Text(
-                          'أنت تستخدم كلمة سر افتراضية. غيّرها الآن.',
+                          i18n.t('must_change_pass_alert'),
                           style: TextStyle(color: cs.onTertiaryContainer),
                         ),
                       ),
@@ -98,9 +101,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               TextField(
                 controller: _oldController,
                 obscureText: _obscure,
-                decoration: const InputDecoration(
-                  labelText: 'كلمة السر الحالية',
-                  prefixIcon: Icon(Icons.lock_outline),
+                decoration: InputDecoration(
+                  labelText: i18n.t('current_password'),
+                  prefixIcon: const Icon(Icons.lock_outline),
                 ),
               ),
               const SizedBox(height: Space.md),
@@ -108,7 +111,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 controller: _newController,
                 obscureText: _obscure,
                 decoration: InputDecoration(
-                  labelText: 'كلمة السر الجديدة',
+                  labelText: i18n.t('new_password'),
                   prefixIcon: const Icon(Icons.lock_reset_outlined),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -125,9 +128,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 controller: _confirmController,
                 obscureText: _obscure,
                 onSubmitted: (_) => _submit(),
-                decoration: const InputDecoration(
-                  labelText: 'تأكيد كلمة السر الجديدة',
-                  prefixIcon: Icon(Icons.check_circle_outline),
+                decoration: InputDecoration(
+                  labelText: i18n.t('confirm_password'),
+                  prefixIcon: const Icon(Icons.check_circle_outline),
                 ),
               ),
 
@@ -165,7 +168,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('حفظ كلمة السر'),
+                      : Text(i18n.t('save_changes')),
                 ),
               ),
             ],

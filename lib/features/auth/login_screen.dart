@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/app_state_service.dart';
+import '../../core/i18n/app_translations.dart';
 import '../../core/design/design_tokens.dart';
 import '../learner/learner_home_screen.dart';
 import 'register_screen.dart';
@@ -55,9 +56,47 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final state = AppStateService.instance;
+    final i18n = I18nService.instance;
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Space.md),
+            child: InkWell(
+              onTap: () => i18n.toggleLanguage(),
+              borderRadius: BorderRadius.circular(RadiusTokens.field),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Space.sm,
+                  vertical: Space.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(RadiusTokens.field),
+                  border: Border.all(color: cs.outlineVariant),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.language, size: 16),
+                    const SizedBox(width: Space.xs),
+                    Text(
+                      i18n.isArabic ? 'EN' : 'عربي',
+                      style: AppTypography.caption.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -89,9 +128,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _userController,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.username],
-                    decoration: const InputDecoration(
-                      labelText: 'اسم المستخدم أو البريد',
-                      prefixIcon: Icon(Icons.person_outline),
+                    decoration: InputDecoration(
+                      labelText: i18n.t('username_or_email'),
+                      prefixIcon: const Icon(Icons.person_outline),
                     ),
                   ),
                   const SizedBox(height: Space.md),
@@ -100,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _obscure,
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: 'كلمة السر',
+                      labelText: i18n.t('password'),
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -147,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 22,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('تسجيل الدخول'),
+                          : Text(i18n.t('sign_in_btn')),
                     ),
                   ),
                   const SizedBox(height: Space.md),
@@ -160,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     },
-                    child: const Text('ليس لديك حساب؟ أنشئ حسابًا'),
+                    child: Text(i18n.t('dont_have_account')),
                   ),
                   const SizedBox(height: Space.sm),
                 ],

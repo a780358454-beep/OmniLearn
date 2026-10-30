@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/services/app_state_service.dart';
+import '../../core/services/cloud_sync_service.dart';
 import '../../core/i18n/app_translations.dart';
 import '../../core/models/learning_models.dart';
 import '../../core/design/design_tokens.dart';
 import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
+import '../creator/creator_studio_screen.dart';
 
 class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
   const TopNavbar({Key? key}) : super(key: key);
@@ -12,14 +14,14 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(68);
 
-  String _roleLabel(UserRole role) {
+  String _roleLabel(UserRole role, I18nService i18n) {
     switch (role) {
       case UserRole.admin:
-        return 'مدير';
+        return i18n.t('role_admin');
       case UserRole.creator:
-        return 'مشرف';
+        return i18n.t('role_creator');
       case UserRole.student:
-        return 'طالب';
+        return i18n.t('role_student');
     }
   }
 
@@ -94,8 +96,59 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                     : Icons.dark_mode_outlined,
                 size: 20,
               ),
-              tooltip: state.isDarkMode ? 'الوضع النهاري' : 'الوضع الليلي',
+              tooltip: state.isDarkMode ? i18n.t('theme_mode_light') : i18n.t('theme_mode_dark'),
               onPressed: () => state.toggleThemeMode(),
+            ),
+
+            // المزامنة السحابية المباشرة
+            AnimatedBuilder(
+              animation: CloudSyncService.instance,
+              builder: (context, _) {
+                final cloud = CloudSyncService.instance;
+                IconData icon;
+                Color? iconColor;
+                if (cloud.status == CloudSyncStatus.syncing) {
+                  icon = Icons.sync_rounded;
+                  iconColor = cs.primary;
+                } else if (cloud.status == CloudSyncStatus.synced) {
+                  icon = Icons.cloud_done_rounded;
+                  iconColor = ColorTokens.accentGreen;
+                } else if (cloud.status == CloudSyncStatus.error) {
+                  icon = Icons.cloud_off_rounded;
+                  iconColor = ColorTokens.error;
+                } else {
+                  icon = Icons.cloud_queue_rounded;
+                  iconColor = cs.onSurfaceVariant;
+                }
+
+                return IconButton(
+                  icon: cloud.status == CloudSyncStatus.syncing
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                        )
+                      : Icon(icon, color: iconColor, size: 20),
+                  tooltip: i18n.t('cloud_sync'),
+                  onPressed: () async {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(i18n.t('cloud_syncing')),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                    final ok = await state.pullCurriculaFromCloud();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(ok ? i18n.t('cloud_pull_success') : i18n.t('cloud_sync_failed')),
+                          backgroundColor: ok ? ColorTokens.success : ColorTokens.warning,
+                        ),
+                      );
+                    }
+                  },
+                );
+              },
             ),
 
             // اللغة
@@ -128,11 +181,18 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
             ),
             const SizedBox(width: Space.sm),
 
-            // قائمة الحساب — لا تبديل أدوار هنا
+            // قائمة الحساب
             PopupMenuButton<String>(
-              tooltip: 'الحساب',
+              tooltip: i18n.t('account'),
               onSelected: (value) async {
-                if (value == 'password') {
+                if (value == 'contributions') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CreatorStudioScreen(),
+                    ),
+                  );
+                } else if (value == 'password') {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -160,12 +220,28 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.name.isEmpty ? 'مستخدم' : user.name,
+                        user.name.isEmpty ? 'User' : user.name,
                         style: AppTypography.label,
                       ),
                       const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade700.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                        ),
+                        child: Text(
+                          'Lv.${user.level} • ${user.levelTitle}',
+                          style: AppTypography.caption.copyWith(
+                            color: Colors.amber.shade800,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
                       Text(
-                        _roleLabel(user.role),
+                        _roleLabel(user.role, i18n),
                         style: AppTypography.caption.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
@@ -174,6 +250,16 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
                 const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  value: 'contributions',
+                  child: Row(
+                    children: [
+                      Icon(Icons.assignment_turned_in_outlined, size: 18, color: cs.primary),
+                      const SizedBox(width: Space.sm),
+                      Text(i18n.t('my_contributions')),
+                    ],
+                  ),
+                ),
                 PopupMenuItem<String>(
                   value: 'password',
                   child: Row(
@@ -188,31 +274,56 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                             : cs.primary,
                       ),
                       const SizedBox(width: Space.sm),
-                      const Text('تغيير كلمة السر'),
+                      Text(i18n.t('change_password')),
                     ],
                   ),
                 ),
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'logout',
                   child: Row(
                     children: [
-                      Icon(Icons.logout, size: 18, color: ColorTokens.error),
-                      SizedBox(width: Space.sm),
-                      Text('تسجيل الخروج'),
+                      const Icon(Icons.logout, size: 18, color: ColorTokens.error),
+                      const SizedBox(width: Space.sm),
+                      Text(i18n.t('logout')),
                     ],
                   ),
                 ),
               ],
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: cs.primary,
-                child: Text(
-                  _initials(user.name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: cs.primary,
+                    child: Text(
+                      _initials(user.name),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
+                  Positioned(
+                    bottom: -2,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade700,
+                        borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                        border: Border.all(color: cs.surface, width: 1.5),
+                      ),
+                      child: Text(
+                        'Lv.${user.level}',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

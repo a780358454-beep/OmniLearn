@@ -5,6 +5,7 @@ import '../../core/models/learning_models.dart';
 import '../../core/design/design_tokens.dart';
 import '../../core/widgets/core_components.dart';
 import '../shared/top_navbar.dart';
+import '../shared/role_guard.dart';
 import '../admin/admin_portal_screen.dart';
 import '../creator/creator_studio_screen.dart';
 import 'lesson_viewer_screen.dart';
@@ -40,10 +41,12 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
       case 'security':
       case 'ethics':
         return Icons.verified_user_rounded;
-      case 'medical':
-      case 'cpr':
-      case 'health':
-        return Icons.medical_services_rounded;
+      case 'web':
+        return Icons.language_rounded;
+      case 'data_object':
+      case 'algorithm':
+      case 'dsa':
+        return Icons.data_object_rounded;
       default:
         return Icons.school_rounded;
     }
@@ -53,7 +56,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
     var count = 0;
     for (final module in course.modules) {
       for (final lesson in module.lessons) {
-        if (lesson.status == ContentStatus.published) {
+        if (lesson.isApproved) {
           count++;
         }
       }
@@ -65,7 +68,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
     var count = 0;
     for (final module in course.modules) {
       for (final lesson in module.lessons) {
-        if (lesson.status == ContentStatus.published && state.isLessonCompleted(lesson.id)) {
+        if (lesson.isApproved && state.isLessonCompleted(lesson.id)) {
           count++;
         }
       }
@@ -142,9 +145,9 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. شريط الإحصائيات (Streak, XP, Completed)
+            // 1. شريط الإحصائيات (Streak, XP, Level, Completed)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: Space.xl, vertical: Space.md),
+              padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
               decoration: BoxDecoration(
                 color: cs.surface,
                 border: Border(bottom: BorderSide(color: cs.outlineVariant)),
@@ -161,7 +164,13 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                   StatChip(
                     icon: Icons.bolt_rounded,
                     color: cs.primary,
-                    label: '${user.xp} ${i18n.t('total_xp')}',
+                    label: '${user.xp} XP',
+                  ),
+                  Container(width: 1, height: 24, color: cs.outlineVariant),
+                  StatChip(
+                    icon: Icons.military_tech_rounded,
+                    color: Colors.amber.shade700,
+                    label: 'Lv.${user.level}',
                   ),
                   Container(width: 1, height: 24, color: cs.outlineVariant),
                   StatChip(
@@ -173,42 +182,197 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
               ),
             ),
 
-            // 2. أزرار الوصول السريع للأدمن والمؤلف
-            if (user.role == UserRole.admin || user.role == UserRole.creator) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.lg, 0),
+            // شريط نسبة التقدم نحو المستوى التالي (Level Progress Nudge)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xs + 2),
+              color: cs.surfaceContainerLow,
+              child: Row(
+                children: [
+                  Icon(Icons.workspace_premium_rounded, size: 16, color: Colors.amber.shade700),
+                  const SizedBox(width: Space.xs),
+                  Text(
+                    'Lv.${user.level} (${user.xpInCurrentLevel}/100 XP)',
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.bold, color: cs.primary),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                      child: LinearProgressIndicator(
+                        value: user.levelProgress,
+                        minHeight: 6,
+                        backgroundColor: cs.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.amber.shade700),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  Text(
+                    'Lv.${user.level + 1}',
+                    style: AppTypography.caption.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // تنبيه المسودات المحلية الجاهزة للمزامنة السحابية (Offline Queue Banner)
+            if (state.hasLocalDrafts)
+              Container(
+                margin: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, 0),
+                padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade700.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(RadiusTokens.card),
+                  border: Border.all(color: Colors.amber.shade700.withOpacity(0.4)),
+                ),
                 child: Row(
                   children: [
-                    if (user.role == UserRole.admin)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AdminPortalScreen()),
-                            );
-                          },
-                          icon: const Icon(Icons.admin_panel_settings, size: 18),
-                          label: Text(i18n.t('admin_portal')),
+                    Icon(Icons.cloud_upload_outlined, color: Colors.amber.shade800, size: 22),
+                    const SizedBox(width: Space.sm),
+                    Expanded(
+                      child: Text(
+                        '${i18n.t('offline_drafts_found')} (${state.getLocalDrafts().length})',
+                        style: AppTypography.caption.copyWith(
+                          color: cs.onSurface,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    if (user.role == UserRole.admin) const SizedBox(width: Space.md),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: () async {
+                        await state.syncAllLocalDrafts();
+                      },
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: Space.md),
+                      ),
+                      child: Text(i18n.t('sync_all_drafts'), style: const TextStyle(fontSize: 11)),
+                    ),
+                  ],
+                ),
+              ),
+
+            // شريط الإشعارات الخفيفة والتحفيز (Micro-Notification Banner)
+            if (state.notificationMessage != null)
+              Container(
+                margin: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, 0),
+                padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
+                decoration: BoxDecoration(
+                  color: ColorTokens.accentGreen.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(RadiusTokens.card),
+                  border: Border.all(color: ColorTokens.accentGreen.withOpacity(0.35)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.campaign_rounded, color: ColorTokens.accentGreen, size: 22),
+                    const SizedBox(width: Space.sm),
+                    Expanded(
+                      child: Text(
+                        state.notificationMessage!,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: cs.onSurface,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => state.dismissNotification(),
+                    ),
+                  ],
+                ),
+              ),
+
+            // 2. أزرار الوصول السريع للمساهمة وإدارة النظام المحمية بـ RoleGuard
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.lg, 0),
+              child: Row(
+                children: [
+                  if (user.role == UserRole.admin) ...[
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const CreatorStudioScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const RoleGuard(
+                                roles: [UserRole.admin],
+                                child: AdminPortalScreen(),
+                              ),
+                            ),
                           );
                         },
-                        icon: const Icon(Icons.draw_rounded, size: 18),
-                        label: Text(i18n.t('creator_studio')),
+                        icon: const Icon(Icons.admin_panel_settings, size: 18),
+                        label: Text(i18n.t('admin_portal')),
+                      ),
+                    ),
+                    const SizedBox(width: Space.md),
+                  ],
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CreatorStudioScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.draw_rounded, size: 18),
+                      label: Text(
+                        user.role == UserRole.student
+                            ? i18n.t('contribute_lesson')
+                            : i18n.t('creator_studio'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // شريط بيان المسار البرمجي الحالي (Track Badge)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.lg, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(RadiusTokens.card),
+                  border: Border.all(color: cs.outlineVariant),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.terminal_rounded, size: 18, color: cs.primary),
+                    const SizedBox(width: Space.xs),
+                    Text(
+                      '${i18n.t('track_label')}: ',
+                      style: AppTypography.caption.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Expanded(
+                      child: Text(
+                        cur.name,
+                        style: AppTypography.caption.copyWith(color: cs.primary, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => _showAllMaterialsModal(context, state, cur, i18n),
+                      child: Text(
+                        i18n.t('switch_curriculum'),
+                        style: AppTypography.caption.copyWith(
+                          color: cs.primary,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
 
             // 3. المادة التي ستدرسها وتقدمك فيها (Hero Active Course Card)
             if (activeCourse != null) ...[
@@ -314,7 +478,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '$doneActiveLessons ${i18n.t('completed_of_total')} $totalActiveLessons دروس',
+                            '$doneActiveLessons ${i18n.t('completed_of_total')} $totalActiveLessons ${i18n.t('lessons_unit')}',
                             style: AppTypography.caption.copyWith(
                               color: cs.onSurface,
                               fontWeight: FontWeight.w600,
@@ -498,7 +662,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    '$doneL / $totalL دروس',
+                                    '$doneL / $totalL ${i18n.t('lessons_unit')}',
                                     style: AppTypography.caption.copyWith(
                                       fontSize: 11,
                                       color: cs.onSurfaceVariant,
@@ -559,34 +723,11 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
               else
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(Space.lg),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (var module in activeCourse.modules) ...[
-                            Row(
-                              children: [
-                                Icon(Icons.bookmark_outline_rounded, size: 18, color: cs.primary),
-                                const SizedBox(width: Space.xs),
-                                Expanded(
-                                  child: Text(
-                                    module.title,
-                                    style: AppTypography.label.copyWith(color: cs.primary),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: Space.sm),
-                            for (var lesson in module.lessons)
-                              if (lesson.status == ContentStatus.published)
-                                _buildLessonTile(context, state, lesson, i18n),
-                            const SizedBox(height: Space.md),
-                          ],
-                        ],
-                      ),
-                    ),
+                  child: Column(
+                    children: [
+                      for (var module in activeCourse.modules)
+                        _buildModuleSkillTree(context, state, activeCourse, module, i18n, cs),
+                    ],
                   ),
                 ),
             ],
@@ -598,63 +739,418 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
     );
   }
 
-  Widget _buildLessonTile(BuildContext context, AppStateService state, Lesson lesson, I18nService i18n) {
-    final isDone = state.isLessonCompleted(lesson.id);
-    final cs = Theme.of(context).colorScheme;
+  /// بناء وحدة تعليمية على طراز شجرة المهارات التفاعلية (Sololearn-style Skill Tree Module)
+  Widget _buildModuleSkillTree(
+    BuildContext context,
+    AppStateService state,
+    Course activeCourse,
+    CourseModule module,
+    I18nService i18n,
+    ColorScheme cs,
+  ) {
+    final approvedLessons = module.lessons.where((l) => l.isApproved).toList();
+    if (approvedLessons.isEmpty) return const SizedBox.shrink();
+
+    final doneLessonsCount = approvedLessons.where((l) => state.isLessonCompleted(l.id)).length;
+    final moduleProgress = approvedLessons.isNotEmpty ? doneLessonsCount / approvedLessons.length : 0.0;
+    final isModuleCompleted = doneLessonsCount == approvedLessons.length && approvedLessons.isNotEmpty;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: Space.sm),
+      margin: const EdgeInsets.only(bottom: Space.xl),
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(RadiusTokens.card),
         border: Border.all(
-          color: isDone ? ColorTokens.success.withOpacity(0.4) : cs.outlineVariant,
+          color: isModuleCompleted ? ColorTokens.success.withOpacity(0.4) : cs.outlineVariant,
+          width: isModuleCompleted ? 1.5 : 1,
         ),
       ),
-      child: ListTile(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => LessonViewerScreen(lesson: lesson)),
-          );
-        },
-        leading: CircleAvatar(
-          backgroundColor: isDone
-              ? ColorTokens.success.withOpacity(0.15)
-              : cs.primary.withOpacity(0.15),
-          child: Icon(
-            isDone ? Icons.check_circle_rounded : Icons.play_arrow_rounded,
-            color: isDone ? ColorTokens.success : cs.primary,
-          ),
-        ),
-        title: Text(
-          lesson.title,
-          style: AppTypography.body.copyWith(
-            fontWeight: FontWeight.bold,
-            color: cs.onSurface,
-          ),
-        ),
-        subtitle: Text(
-          '${lesson.summary} • +${lesson.xpReward} XP',
-          style: AppTypography.caption.copyWith(color: cs.onSurfaceVariant),
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
-          decoration: BoxDecoration(
-            color: isDone
-                ? ColorTokens.success.withOpacity(0.12)
-                : cs.primary.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(RadiusTokens.pill),
-          ),
-          child: Text(
-            isDone ? i18n.t('review_lesson') : i18n.t('start_lesson'),
-            style: AppTypography.caption.copyWith(
-              color: isDone ? ColorTokens.success : cs.primary,
-              fontWeight: FontWeight.bold,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ترويسة الوحدة (Module Header)
+          Container(
+            padding: const EdgeInsets.all(Space.lg),
+            decoration: BoxDecoration(
+              color: isModuleCompleted
+                  ? ColorTokens.success.withOpacity(0.08)
+                  : cs.surfaceContainerHigh.withOpacity(0.5),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(RadiusTokens.card)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(Space.sm),
+                  decoration: BoxDecoration(
+                    color: (isModuleCompleted ? ColorTokens.success : cs.primary).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(RadiusTokens.field),
+                  ),
+                  child: Icon(
+                    isModuleCompleted ? Icons.verified_rounded : Icons.folder_special_rounded,
+                    color: isModuleCompleted ? ColorTokens.success : cs.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: Space.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        module.title,
+                        style: AppTypography.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      if (module.description.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          module.description,
+                          style: AppTypography.caption.copyWith(color: cs.onSurfaceVariant),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Space.sm),
+                // شارة إنجاز الوحدة
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: Space.xs),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                    border: Border.all(
+                      color: isModuleCompleted ? ColorTokens.success : cs.outlineVariant,
+                    ),
+                  ),
+                  child: Text(
+                    '$doneLessonsCount / ${approvedLessons.length}',
+                    style: AppTypography.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isModuleCompleted ? ColorTokens.success : cs.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
+
+          // مسار عقد الدروس التفاعلية مع خطوط الربط التسلسلي (Sequential Skill Tree Roadmap)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.lg, Space.md),
+            child: Column(
+              children: [
+                for (int i = 0; i < approvedLessons.length; i++)
+                  _buildSkillTreeNode(
+                    context: context,
+                    state: state,
+                    activeCourse: activeCourse,
+                    lesson: approvedLessons[i],
+                    isLastLesson: i == approvedLessons.length - 1,
+                    i18n: i18n,
+                    cs: cs,
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  /// عقدة الدرس التفاعلية في المسار (Interactive Roadmap Node)
+  Widget _buildSkillTreeNode({
+    required BuildContext context,
+    required AppStateService state,
+    required Course activeCourse,
+    required Lesson lesson,
+    required bool isLastLesson,
+    required I18nService i18n,
+    required ColorScheme cs,
+  }) {
+    final isLocked = state.isLessonLocked(activeCourse, lesson.id);
+    final isDone = state.isLessonCompleted(lesson.id);
+    final isActive = !isDone && !isLocked;
+
+    // تمييز نوع العقدة بصرياً
+    String typeLabel;
+    IconData typeIcon;
+    Color typeColor;
+
+    if (lesson.isMilestoneQuiz) {
+      typeLabel = i18n.t('unit_milestone_quiz');
+      typeIcon = Icons.military_tech_rounded;
+      typeColor = Colors.amber.shade800;
+    } else if (lesson.isCodeChallenge) {
+      typeLabel = i18n.t('code_challenge');
+      typeIcon = Icons.terminal_rounded;
+      typeColor = Colors.teal;
+    } else {
+      typeLabel = i18n.t('theory_lesson');
+      typeIcon = Icons.menu_book_rounded;
+      typeColor = cs.primary;
+    }
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. عمود العقدة والخط الرابط (Timeline Node & Connector Line)
+          SizedBox(
+            width: 44,
+            child: Column(
+              children: [
+                // دائرة العقدة التفاعلية
+                GestureDetector(
+                  onTap: () => _handleLessonTap(context, state, lesson, isLocked, i18n),
+                  child: AnimatedContainer(
+                    duration: MotionTokens.screen,
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDone
+                          ? ColorTokens.success
+                          : (isActive ? cs.primary : cs.surfaceContainerHighest),
+                      border: Border.all(
+                        color: isDone
+                            ? ColorTokens.success
+                            : (isActive ? Colors.white : cs.outlineVariant),
+                        width: isActive ? 2.5 : 1.5,
+                      ),
+                      boxShadow: isActive
+                          ? [
+                              BoxShadow(
+                                color: cs.primary.withOpacity(0.4),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : [],
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isDone
+                            ? Icons.check_rounded
+                            : (isLocked ? Icons.lock_rounded : Icons.play_arrow_rounded),
+                        color: isLocked ? cs.onSurfaceVariant.withOpacity(0.6) : Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // خط التوصيل بين العقد المتتالية
+                if (!isLastLesson)
+                  Expanded(
+                    child: Container(
+                      width: 3.5,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDone
+                            ? ColorTokens.success
+                            : (isActive ? cs.primary.withOpacity(0.6) : cs.outlineVariant.withOpacity(0.5)),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Space.md),
+
+          // 2. بطاقة معلومات الدرس التفاعلية
+          Expanded(
+            child: InkWell(
+              onTap: () => _handleLessonTap(context, state, lesson, isLocked, i18n),
+              borderRadius: BorderRadius.circular(RadiusTokens.card),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: Space.lg),
+                padding: const EdgeInsets.all(Space.md),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? cs.primary.withOpacity(0.06)
+                      : (isDone ? ColorTokens.success.withOpacity(0.04) : cs.surface),
+                  borderRadius: BorderRadius.circular(RadiusTokens.card),
+                  border: Border.all(
+                    color: isActive
+                        ? cs.primary
+                        : (isDone ? ColorTokens.success.withOpacity(0.3) : cs.outlineVariant),
+                    width: isActive ? 1.5 : 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // شارات النوع والمكافأة وحالة القفل
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: typeColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(typeIcon, size: 13, color: typeColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                typeLabel,
+                                style: AppTypography.caption.copyWith(
+                                  color: typeColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                          ),
+                          child: Text(
+                            '+${lesson.xpReward} XP',
+                            style: AppTypography.caption.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                              color: cs.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Space.xs),
+
+                    // عنوان الدرس
+                    Text(
+                      lesson.localizedTitle(i18n.isArabic),
+                      style: AppTypography.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isLocked ? cs.onSurfaceVariant : cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+
+                    // ملخص الدرس
+                    Text(
+                      lesson.localizedSummary(i18n.isArabic),
+                      style: AppTypography.caption.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: Space.sm),
+
+                    // شارة الإجراء المباشر
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (isLocked)
+                          Row(
+                            children: [
+                              Icon(Icons.lock_outline_rounded, size: 14, color: cs.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text(
+                                i18n.t('lesson_locked_badge'),
+                                style: AppTypography.caption.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          )
+                        else if (isDone)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: ColorTokens.success.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.check_circle_rounded, size: 14, color: ColorTokens.success),
+                                const SizedBox(width: 4),
+                                Text(
+                                  i18n.t('review_lesson'),
+                                  style: AppTypography.caption.copyWith(
+                                    color: ColorTokens.success,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: cs.primary,
+                              borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.play_arrow_rounded, size: 15, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  i18n.t('start_lesson'),
+                                  style: AppTypography.caption.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleLessonTap(
+    BuildContext context,
+    AppStateService state,
+    Lesson lesson,
+    bool isLocked,
+    I18nService i18n,
+  ) {
+    if (isLocked) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_clock_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: Space.sm),
+              Expanded(child: Text(i18n.t('locked_lesson_alert'))),
+            ],
+          ),
+          backgroundColor: ColorTokens.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => LessonViewerScreen(lesson: lesson)),
     );
   }
 
@@ -851,7 +1347,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        title: const Text('بيانات المحاولات البحثية (Research CSV)'),
+        title: Text(I18nService.instance.t('export_research_csv')),
         content: SingleChildScrollView(
           child: SelectableText(
             csv,
@@ -859,7 +1355,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
           ),
         ),
         actions: [
-          ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx), child: Text(I18nService.instance.t('close'))),
         ],
       ),
     );
