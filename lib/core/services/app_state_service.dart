@@ -125,6 +125,12 @@ class AppStateService extends ChangeNotifier {
       _curricula = loadedCurricula;
     }
 
+    // استعادة المسار النشط المحفوظ لجلسة الطالب، أو استخدام المسار الافتراضي للنظام
+    final savedUserCurriculum = await StorageRepository.loadUserActiveCurriculum();
+    if (savedUserCurriculum != null && _curricula.any((c) => c.id == savedUserCurriculum)) {
+      _activeCurriculumId = savedUserCurriculum;
+    }
+
     final sessionId = await StorageRepository.loadSessionUserId();
     if (sessionId != null) {
       for (final u in _users) {
@@ -497,10 +503,16 @@ class AppStateService extends ChangeNotifier {
   }
 
   void setActiveCurriculum(String curriculumId) {
-    if (!isAdmin) return;
+    // إتاحة التبديل الحر لكافة الطلاب بين جميع المسارات المعتمدة
+    if (!_curricula.any((c) => c.id == curriculumId)) return;
     _activeCurriculumId = curriculumId;
-    _branding.activeCurriculumId = curriculumId;
-    StorageRepository.saveBranding(_branding);
+    StorageRepository.saveUserActiveCurriculum(curriculumId);
+
+    // إذا كان المستخدم مديراً، يتم أيضاً تحديث المسار الافتراضي للمنصة
+    if (isAdmin) {
+      _branding.activeCurriculumId = curriculumId;
+      StorageRepository.saveBranding(_branding);
+    }
     notifyListeners();
   }
 
@@ -560,12 +572,33 @@ class AppStateService extends ChangeNotifier {
     final course = activeCurriculum.courses.firstWhere((c) => c.id == courseId);
     final module = course.modules.firstWhere((m) => m.id == moduleId);
 
+    final existingIndex = module.lessons.indexWhere((l) => l.id == lesson.id);
+
+    // إذا كان درساً موجوداً مسبقاً والمستخدم ليس مديراً:
+    if (existingIndex >= 0 && !isAdmin) {
+      final existing = module.lessons[existingIndex];
+      final isOwner = existing.authorId == _currentUser.id || existing.creatorId == _currentUser.id;
+      if (!isOwner) {
+        // حماية تامة: منع التعديل على دروس الآخرين أو دروس النظام المعتمدة
+        return;
+      }
+      // إذا كان معتمداً ولديه نسخة ظل، نحافظ على بقاء النسخة الأصلية معتمدة للطلاب ونحفظ مسودة التعديل
+      if (existing.isApproved && lesson.hasShadowUpdate) {
+        existing.pendingUpdatePayload = lesson.pendingUpdatePayload;
+        existing.reviewThread = lesson.reviewThread;
+        StorageRepository.saveCurricula(_curricula);
+        notifyListeners();
+        if (submitForReview) unawaited(pushCurriculaToCloud());
+        return;
+      }
+    }
+
     // ربط هوية المؤلف
     lesson.authorId ??= _currentUser.id;
     lesson.authorName ??= _currentUser.name;
 
-    // قيد صارم: لا نشر مباشر بدون اعتماد الإدارة
-    if (!isAdmin) {
+    // قيد صارم: لا نشر مباشر للدروس الجديدة أو المسودات غير المعتمدة بدون موافقة الإدارة
+    if (!isAdmin && !lesson.isApproved) {
       lesson.status = submitForReview
           ? ContentStatus.pendingReview
           : ContentStatus.localDraft;
@@ -574,7 +607,6 @@ class AppStateService extends ChangeNotifier {
       }
     }
 
-    final existingIndex = module.lessons.indexWhere((l) => l.id == lesson.id);
     if (existingIndex >= 0) {
       module.lessons[existingIndex] = lesson;
     } else {
@@ -596,7 +628,7 @@ class AppStateService extends ChangeNotifier {
       for (final course in c.courses) {
         for (final m in course.modules) {
           for (final l in m.lessons) {
-            if (l.isPendingReview) {
+            if (l.isPendingReview || l.hasShadowUpdate) {
               list.add(l);
             }
           }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:codesphere/core/models/learning_models.dart';
 import 'package:codesphere/core/security/content_sanitizer.dart';
+import 'package:codesphere/data/initial_curricula.dart';
 
 void main() {
   group('OmniLearn Models & Schema Tests', () {
@@ -201,6 +202,34 @@ void main() {
       expect(revived.pendingUpdatePayload?['title'], 'مدخل متقدم للغة Dart');
       expect(revived.reviewThread.length, 1);
       expect(revived.reviewThread.first.message, contains('Async/Await'));
+    });
+
+    test('Duolingo Bite mode serialization and display mode enum values', () {
+      final duoLesson = Lesson(
+        id: 'lesson_duo_1',
+        moduleId: 'mod_1',
+        title: 'تحدي سريع',
+        summary: 'درس بطريقة دولينجو',
+        orderIndex: 1,
+        displayMode: LessonDisplayMode.duolingoBite,
+      );
+
+      final json = duoLesson.toJson();
+      expect(json['displayMode'], 'duolingoBite');
+
+      final revived = Lesson.fromJson(json);
+      expect(revived.displayMode, LessonDisplayMode.duolingoBite);
+    });
+
+    test('InitialCurriculaData provides rich Harmash articles for primary modules', () {
+      final curricula = InitialCurriculaData.getCurricula();
+      expect(curricula.isNotEmpty, isTrue);
+
+      final firstCourse = curricula.first.courses.first;
+      final firstLesson = firstCourse.modules.first.lessons.first;
+      expect(firstLesson.articleContent, isNotNull);
+      expect(firstLesson.articleContent, contains('مدخل شامل إلى إطار العمل الرشيق Scrum'));
+      expect(firstLesson.displayMode, LessonDisplayMode.harmashArticle);
     });
   });
 }

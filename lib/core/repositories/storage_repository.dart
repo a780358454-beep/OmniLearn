@@ -11,6 +11,7 @@ class StorageRepository {
   static const String _keySession = 'omni_session_v1';
   static const String _keyCloudEndpoint = 'omni_cloud_endpoint_v1';
   static const String _keyLastSync = 'omni_last_sync_v1';
+  static const String _keyUserActiveCurriculum = 'omni_user_active_curriculum_v1';
 
   // --- 1. حفظ واسترجاع الهوية والإعدادات ---
   static Future<void> saveBranding(AppBrandingConfig branding) async {
@@ -180,5 +181,16 @@ class StorageRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  // --- 8. حفظ واسترجاع المسار النشط المختار للطالب ---
+  static Future<void> saveUserActiveCurriculum(String curriculumId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUserActiveCurriculum, curriculumId);
+  }
+
+  static Future<String?> loadUserActiveCurriculum() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyUserActiveCurriculum);
   }
 }

@@ -20,6 +20,14 @@ class _LessonViewerScreenState extends State<LessonViewerScreen> {
   int _currentPage = 0;
   late LessonDisplayMode _displayMode;
 
+  // حالة نمط دولينجو الخاطف (Duolingo Bite-sized Mode)
+  int _duoStepIndex = 0;
+  int _duoHearts = 5;
+  int _duoStreak = 1;
+  int? _duoSelectedOption;
+  bool _duoHasAnswered = false;
+  bool _duoIsCorrect = false;
+
   @override
   void initState() {
     super.initState();
@@ -38,28 +46,77 @@ class _LessonViewerScreenState extends State<LessonViewerScreen> {
     final i18n = I18nService.instance;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isHarmashMode = _displayMode == LessonDisplayMode.harmashArticle;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.lesson.localizedTitle(i18n.isArabic)),
         actions: [
-          // زر التبديل بين نمط هرمش (مقال مرجعي شامل) ونمط البطاقات التفاعلية
-          IconButton(
+          // قائمة التبديل بين أنماط العرض الثلاثة (Harmash, Sololearn, Duolingo)
+          PopupMenuButton<LessonDisplayMode>(
             icon: Icon(
-              isHarmashMode ? Icons.view_carousel_rounded : Icons.menu_book_rounded,
+              _displayMode == LessonDisplayMode.harmashArticle
+                  ? Icons.menu_book_rounded
+                  : (_displayMode == LessonDisplayMode.duolingoBite
+                      ? Icons.bolt_rounded
+                      : Icons.view_carousel_rounded),
               color: colorScheme.primary,
             ),
-            tooltip: isHarmashMode
-                ? 'التبديل إلى نمط البطاقات التفاعلية'
-                : 'التبديل إلى نمط مقال هرمش المرجعي',
-            onPressed: () {
+            tooltip: 'تبديل نمط الدرس (هرمش، سولوليرن، دولينجو)',
+            onSelected: (mode) {
               setState(() {
-                _displayMode = isHarmashMode
-                    ? LessonDisplayMode.cards
-                    : LessonDisplayMode.harmashArticle;
+                _displayMode = mode;
+                _duoStepIndex = 0;
+                _duoHasAnswered = false;
+                _duoSelectedOption = null;
               });
             },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: LessonDisplayMode.harmashArticle,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.menu_book_rounded,
+                      color: _displayMode == LessonDisplayMode.harmashArticle
+                          ? colorScheme.primary
+                          : null,
+                    ),
+                    const SizedBox(width: Space.sm),
+                    const Text('نمط هرمش (مقال مرجعي شامل)'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: LessonDisplayMode.cards,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.view_carousel_rounded,
+                      color: _displayMode == LessonDisplayMode.cards
+                          ? colorScheme.primary
+                          : null,
+                    ),
+                    const SizedBox(width: Space.sm),
+                    const Text('نمط سولوليرن (بطاقات تفاعلية)'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: LessonDisplayMode.duolingoBite,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.bolt_rounded,
+                      color: _displayMode == LessonDisplayMode.duolingoBite
+                          ? colorScheme.primary
+                          : null,
+                    ),
+                    const SizedBox(width: Space.sm),
+                    const Text('نمط دولينجو (تحديات خاطفة سريعة)'),
+                  ],
+                ),
+              ),
+            ],
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
@@ -81,11 +138,27 @@ class _LessonViewerScreenState extends State<LessonViewerScreen> {
           ),
         ],
       ),
-      body: isHarmashMode
-          ? _buildHarmashArticleView(context, i18n, colorScheme)
-          : _buildInteractiveCardsView(cards, i18n, colorScheme),
-      bottomNavigationBar: isHarmashMode ? null : _buildCardsBottomNav(cards, i18n, colorScheme),
+      body: _buildCurrentModeBody(context, cards, i18n, colorScheme),
+      bottomNavigationBar: _displayMode == LessonDisplayMode.cards
+          ? _buildCardsBottomNav(cards, i18n, colorScheme)
+          : null,
     );
+  }
+
+  Widget _buildCurrentModeBody(
+    BuildContext context,
+    List<LessonCard> cards,
+    I18nService i18n,
+    ColorScheme colorScheme,
+  ) {
+    switch (_displayMode) {
+      case LessonDisplayMode.harmashArticle:
+        return _buildHarmashArticleView(context, i18n, colorScheme);
+      case LessonDisplayMode.duolingoBite:
+        return _buildDuolingoBiteView(context, i18n, colorScheme);
+      case LessonDisplayMode.cards:
+        return _buildInteractiveCardsView(cards, i18n, colorScheme);
+    }
   }
 
   /// نمط المقال المرجعي الشامل على طراز موقع هرمش (Harmash Article View)
@@ -570,6 +643,498 @@ class _LessonViewerScreenState extends State<LessonViewerScreen> {
                     : Icons.play_arrow_rounded),
                 label: Text(
                   _currentPage < cards.length - 1 ? i18n.t('continue_lesson') : i18n.t('start_lesson'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// نمط دولينجو: خطوات سريعة وتحديات خاطفة (Duolingo Bite-sized View)
+  Widget _buildDuolingoBiteView(
+    BuildContext context,
+    I18nService i18n,
+    ColorScheme colorScheme,
+  ) {
+    final lesson = widget.lesson;
+    final allSteps = <dynamic>[...lesson.cards, ...lesson.quizzes];
+
+    if (allSteps.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.info_outline, size: 48),
+            const SizedBox(height: Space.md),
+            const Text('لا توجد خطوات متوفرة لهذا الدرس حالياً.'),
+            const SizedBox(height: Space.md),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('العودة'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // شاشة النصر عند اكتمال جميع الخطوات
+    if (_duoStepIndex >= allSteps.length) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(Space.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(Space.xl),
+                decoration: BoxDecoration(
+                  color: ColorTokens.accentGreen.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  size: 80,
+                  color: ColorTokens.accentGreen,
+                ),
+              ),
+              const SizedBox(height: Space.xl),
+              Text(
+                'أحسنت! أتممت التحدي الخاطف 🚀',
+                style: AppTypography.headline.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: Space.sm),
+              Text(
+                'اكتسبت +${lesson.xpReward} XP بنجاح بنمط دولينجو السريع!',
+                style: AppTypography.bodySmall.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: Space.xl),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    AppStateService.instance.completeLesson(lesson.id, lesson.xpReward);
+                    Navigator.pop(context, true);
+                  },
+                  icon: const Icon(Icons.check_circle_rounded),
+                  label: const Text('إنهاء والعودة إلى شجرة المهارات'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ColorTokens.accentGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(Space.md),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final currentStep = allSteps[_duoStepIndex];
+    final progress = (_duoStepIndex + 1) / allSteps.length;
+
+    return Column(
+      children: [
+        // شريط تقدم دولينجو العلوي: مؤشر السلسلة والقلوب والتقدم
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.sm),
+          color: colorScheme.surfaceContainerLow,
+          child: Row(
+            children: [
+              // مؤشر السلسلة (Combo / Streak)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_duoStreak',
+                      style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Space.md),
+              // شريط التقدم الخطي
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
+                    valueColor: const AlwaysStoppedAnimation<Color>(ColorTokens.accentGreen),
+                  ),
+                ),
+              ),
+              const SizedBox(width: Space.md),
+              // مؤشر القلوب (Hearts)
+              Row(
+                children: [
+                  const Icon(Icons.favorite_rounded, color: Colors.red, size: 18),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$_duoHearts',
+                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // جسم التحدي الحالي
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(Space.xl),
+            child: currentStep is LessonCard
+                ? _buildDuoCardStep(currentStep, _duoStepIndex + 1, allSteps.length, colorScheme)
+                : _buildDuoQuizStep(currentStep as QuizQuestion, _duoStepIndex + 1, allSteps.length, colorScheme, i18n),
+          ),
+        ),
+
+        // شريط التقييم السفلي
+        _buildDuoBottomBar(currentStep, allSteps.length, colorScheme, i18n),
+      ],
+    );
+  }
+
+  Widget _buildDuoCardStep(
+    LessonCard card,
+    int stepNumber,
+    int totalSteps,
+    ColorScheme colorScheme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 4),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(RadiusTokens.pill),
+              ),
+              child: Text(
+                '💡 مفهوم سريع ($stepNumber/$totalSteps)',
+                style: AppTypography.caption.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.lg),
+        Text(
+          card.title,
+          style: AppTypography.headline.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: Space.md),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(Space.lg),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(RadiusTokens.card),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Text(
+            card.content,
+            style: AppTypography.body.copyWith(
+              color: colorScheme.onSurface,
+              height: 1.7,
+            ),
+          ),
+        ),
+        if (card.codeSnippet != null && card.codeSnippet!.isNotEmpty) ...[
+          const SizedBox(height: Space.lg),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(Space.md),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E2E),
+              borderRadius: BorderRadius.circular(RadiusTokens.card),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'كود توضيحي',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, color: Colors.white70, size: 16),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: card.codeSnippet!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم نسخ الكود!')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                Text(
+                  card.codeSnippet!,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    color: Color(0xFFA6E3A1),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDuoQuizStep(
+    QuizQuestion quiz,
+    int stepNumber,
+    int totalSteps,
+    ColorScheme colorScheme,
+    I18nService i18n,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(RadiusTokens.pill),
+              ),
+              child: Text(
+                '⚡ تحدي خاطف ($stepNumber/$totalSteps)',
+                style: AppTypography.caption.copyWith(
+                  color: Colors.amber.shade900,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.lg),
+        Text(
+          quiz.localizedPrompt(i18n.isArabic),
+          style: AppTypography.headline.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: Space.xl),
+        for (int i = 0; i < quiz.optionsList.length; i++) ...[
+          InkWell(
+            onTap: _duoHasAnswered
+                ? null
+                : () {
+                    setState(() {
+                      _duoSelectedOption = i;
+                    });
+                  },
+            borderRadius: BorderRadius.circular(RadiusTokens.card),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: Space.md),
+              padding: const EdgeInsets.all(Space.lg),
+              decoration: BoxDecoration(
+                color: _duoSelectedOption == i
+                    ? colorScheme.primaryContainer.withOpacity(0.6)
+                    : colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(RadiusTokens.card),
+                border: Border.all(
+                  color: _duoSelectedOption == i
+                      ? colorScheme.primary
+                      : colorScheme.outlineVariant,
+                  width: _duoSelectedOption == i ? 2 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _duoSelectedOption == i
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                        width: 2,
+                      ),
+                      color: _duoSelectedOption == i ? colorScheme.primary : Colors.transparent,
+                    ),
+                    child: _duoSelectedOption == i
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : null,
+                  ),
+                  const SizedBox(width: Space.md),
+                  Expanded(
+                    child: Text(
+                      quiz.optionsList[i].text,
+                      style: AppTypography.body.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: _duoSelectedOption == i ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDuoBottomBar(
+    dynamic currentStep,
+    int totalSteps,
+    ColorScheme colorScheme,
+    I18nService i18n,
+  ) {
+    final isCard = currentStep is LessonCard;
+
+    if (isCard) {
+      return Container(
+        padding: const EdgeInsets.all(Space.lg),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainer,
+          border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _duoStepIndex++;
+                  _duoStreak++;
+                });
+              },
+              icon: const Icon(Icons.bolt_rounded),
+              label: const Text('استوعبت الفكرة! التالي ⚡'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorTokens.accentGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.all(Space.md),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final quiz = currentStep as QuizQuestion;
+
+    return Container(
+      padding: const EdgeInsets.all(Space.lg),
+      decoration: BoxDecoration(
+        color: _duoHasAnswered
+            ? (_duoIsCorrect
+                ? ColorTokens.accentGreen.withOpacity(0.15)
+                : ColorTokens.error.withOpacity(0.15))
+            : colorScheme.surfaceContainer,
+        border: Border(
+          top: BorderSide(
+            color: _duoHasAnswered
+                ? (_duoIsCorrect ? ColorTokens.accentGreen : ColorTokens.error)
+                : colorScheme.outlineVariant,
+            width: _duoHasAnswered ? 2 : 1,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_duoHasAnswered) ...[
+              Row(
+                children: [
+                  Icon(
+                    _duoIsCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                    color: _duoIsCorrect ? ColorTokens.accentGreen : ColorTokens.error,
+                  ),
+                  const SizedBox(width: Space.sm),
+                  Text(
+                    _duoIsCorrect ? 'إجابة ممتازة وذكية! 🎯' : 'تحتاج لمراجعة أدق!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _duoIsCorrect ? ColorTokens.accentGreen : ColorTokens.error,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Space.xs),
+              Text(
+                quiz.localizedExplanation(i18n.isArabic),
+                style: AppTypography.caption.copyWith(color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: Space.md),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _duoHasAnswered
+                    ? () {
+                        setState(() {
+                          if (_duoIsCorrect) {
+                            _duoStepIndex++;
+                            _duoStreak++;
+                          }
+                          _duoHasAnswered = false;
+                          _duoSelectedOption = null;
+                        });
+                      }
+                    : (_duoSelectedOption != null
+                        ? () {
+                            final isCorrect = _duoSelectedOption != null &&
+                                quiz.optionsList[_duoSelectedOption!].isCorrect;
+                            setState(() {
+                              _duoHasAnswered = true;
+                              _duoIsCorrect = isCorrect;
+                              if (!isCorrect && _duoHearts > 1) {
+                                _duoHearts--;
+                              }
+                            });
+                          }
+                        : null),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _duoHasAnswered
+                      ? (_duoIsCorrect ? ColorTokens.accentGreen : ColorTokens.error)
+                      : colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.all(Space.md),
+                ),
+                child: Text(
+                  _duoHasAnswered
+                      ? (_duoIsCorrect ? 'متابعة الخطوة التالية 🚀' : 'المحاولة مجدداً 🔄')
+                      : 'تحقق من الإجابة ✅',
                 ),
               ),
             ),

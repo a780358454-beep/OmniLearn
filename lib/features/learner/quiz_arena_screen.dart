@@ -265,6 +265,7 @@ class _QuizArenaScreenState extends State<QuizArenaScreen> {
         ReorderableListView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
           onReorder: (oldIndex, newIndex) {
             if (_hasAnswered) return;
             setState(() {
@@ -286,7 +287,14 @@ class _QuizArenaScreenState extends State<QuizArenaScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.drag_indicator, color: colorScheme.primary),
+                    ReorderableDragStartListener(
+                      index: i,
+                      enabled: !_hasAnswered,
+                      child: Container(
+                        padding: const EdgeInsets.all(Space.xs),
+                        child: Icon(Icons.drag_indicator, color: colorScheme.primary),
+                      ),
+                    ),
                     const SizedBox(width: Space.sm),
                     Expanded(
                       child: Text(_shuffledOrderItems[i], style: AppTypography.body),

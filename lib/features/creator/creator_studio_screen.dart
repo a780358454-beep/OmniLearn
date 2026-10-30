@@ -575,6 +575,24 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     I18nService i18n, {
     Lesson? existingLesson,
   }) {
+    // 1. التحقق الصارم من الملكية والصلاحيات قبل فتح نموذج التعديل
+    if (existingLesson != null && !state.isAdmin) {
+      final isOwner = existingLesson.authorId == state.currentUser.id ||
+          existingLesson.creatorId == state.currentUser.id;
+      final isSystem = existingLesson.authorId == null ||
+          existingLesson.authorId == 'system' ||
+          existingLesson.authorId == 'admin';
+      if (isSystem || !isOwner) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('عذراً، دروس النظام الرسمية ودروس المؤلفين الآخرين محمية ولا يمكن تعديلها.'),
+            backgroundColor: ColorTokens.error,
+          ),
+        );
+        return;
+      }
+    }
+
     final isEditing = existingLesson != null;
 
     final lessonTitleArC = TextEditingController(text: existingLesson?.title ?? '');
@@ -1023,6 +1041,24 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     final existingMap = existingLessonId != null ? state.findLessonContext(existingLessonId) : null;
     final existingLesson = existingMap != null ? existingMap['lesson'] as Lesson : null;
 
+    // التحقق الصارم من الأمان والصلاحيات
+    if (existingLesson != null && !state.isAdmin) {
+      final isOwner = existingLesson.authorId == state.currentUser.id ||
+          existingLesson.creatorId == state.currentUser.id;
+      final isSystemLesson = existingLesson.authorId == null ||
+          existingLesson.authorId == 'system' ||
+          existingLesson.authorId == 'admin';
+      if (isSystemLesson || !isOwner) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('عذراً، لا يمكنك تعديل هذا الدرس. دروس النظام والدروس المعتمدة للآخرين محمية.'),
+            backgroundColor: ColorTokens.error,
+          ),
+        );
+        return;
+      }
+    }
+
     // 3. النسخ الظلية (Shadow Versioning): إذا كان الدرس منشوراً ومعتمداً بالفعل،
     // لا نمس النسخة المنشورة للطلاب، بل نحفظ التعديل كنسخة ظل معلقة لمراجعة الإدارة
     if (existingLesson != null && existingLesson.isApproved && !state.isAdmin && submitForReview) {
@@ -1063,7 +1099,7 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
         ],
         'updatedAt': DateTime.now().toIso8601String(),
       };
-      existingLesson.status = ContentStatus.needsRevision;
+      // يبقى الدرس معتمداً للطلاب دون أي انقطاع مع حفظ رسالة المراجعة
       existingLesson.submittedAt = DateTime.now();
       existingLesson.reviewThread.add(
         ReviewMessage(
@@ -1079,6 +1115,12 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
         moduleId: moduleId,
         lesson: existingLesson,
         submitForReview: true,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إرسال التعديل للمراجعة بنجاح، وستبقى النسخة المنشورة متاحة للطلاب.'),
+          backgroundColor: ColorTokens.accentGreen,
+        ),
       );
       return;
     }
