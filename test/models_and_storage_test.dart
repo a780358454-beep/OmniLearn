@@ -4,7 +4,7 @@ import 'package:codesphere/core/security/content_sanitizer.dart';
 import 'package:codesphere/data/initial_curricula.dart';
 
 void main() {
-  group('OmniLearn Models & Schema Tests', () {
+  group('Masra Models & Schema Tests', () {
     test('QuizQuestion optionsList and whyWrong serialization', () {
       final q = QuizQuestion(
         id: 'test_q1',
@@ -159,7 +159,7 @@ void main() {
       expect(safe, contains('مرحبا بالبرمجة'));
       expect(ContentSanitizer.isSafe(malicious), isFalse);
 
-      const pureCode = 'void main() {\n  print("Hello CodeSphere");\n}';
+      const pureCode = 'void main() {\n  print("Hello Masra");\n}';
       expect(ContentSanitizer.sanitizeCode(pureCode), pureCode);
       expect(ContentSanitizer.isSafe(pureCode), isTrue);
     });
@@ -230,6 +230,23 @@ void main() {
       expect(firstLesson.articleContent, isNotNull);
       expect(firstLesson.articleContent, contains('مدخل شامل إلى إطار العمل الرشيق Scrum'));
       expect(firstLesson.displayMode, LessonDisplayMode.harmashArticle);
+
+      // اختبار توفر مقالات هرمش لباقي المسارات
+      final webCourse = curricula[1].courses.first;
+      final webLesson = webCourse.modules.first.lessons.first;
+      expect(webLesson.articleContent, isNotNull);
+      expect(webLesson.articleContent, contains('RESTful APIs'));
+
+      final algoCourse = curricula[2].courses.first;
+      final algoLesson = algoCourse.modules.first.lessons.first;
+      expect(algoLesson.articleContent, isNotNull);
+      expect(algoLesson.articleContent, contains('Big-O Notation'));
+    });
+
+    test('Masra branding defaults and configuration', () {
+      final branding = AppBrandingConfig.fromJson({});
+      expect(branding.appName, contains('مَسْرَاء'));
+      expect(branding.appTagline, contains('البرمجيات'));
     });
   });
 }

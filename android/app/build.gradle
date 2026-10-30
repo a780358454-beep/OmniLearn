@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.omnilearn.app"
+        applicationId "app.masra.learning"
         minSdk = 21
         targetSdk = 34
         versionCode flutterVersionCode.toInteger()

@@ -10,6 +10,7 @@ class StorageRepository {
   static const String _keyUsers = 'omni_users_v1';
   static const String _keySession = 'omni_session_v1';
   static const String _keyCloudEndpoint = 'omni_cloud_endpoint_v1';
+  static const String _keyCloudApiKey = 'omni_cloud_apikey_v1';
   static const String _keyLastSync = 'omni_last_sync_v1';
   static const String _keyUserActiveCurriculum = 'omni_user_active_curriculum_v1';
 
@@ -165,6 +166,16 @@ class StorageRepository {
   static Future<String?> loadCloudEndpoint() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyCloudEndpoint);
+  }
+
+  static Future<void> saveCloudApiKey(String apiKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCloudApiKey, apiKey.trim());
+  }
+
+  static Future<String?> loadCloudApiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyCloudApiKey);
   }
 
   static Future<void> saveLastSyncTime(DateTime time) async {

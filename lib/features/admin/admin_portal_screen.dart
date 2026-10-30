@@ -112,6 +112,12 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> with SingleTicker
       {'key': 'data_object', 'icon': Icons.data_object, 'label': 'Algorithms'},
       {'key': 'devices', 'icon': Icons.devices_rounded, 'label': 'Web & Mobile'},
       {'key': 'rocket', 'icon': Icons.rocket_launch, 'label': 'Rocket'},
+      {'key': 'menu_book', 'icon': Icons.menu_book_rounded, 'label': 'Harmash'},
+      {'key': 'bolt', 'icon': Icons.bolt_rounded, 'label': 'Duolingo'},
+      {'key': 'hub', 'icon': Icons.hub_rounded, 'label': 'Networks'},
+      {'key': 'security', 'icon': Icons.security_rounded, 'label': 'Ethics & Security'},
+      {'key': 'smart_toy', 'icon': Icons.smart_toy_rounded, 'label': 'AI & Robotics'},
+      {'key': 'psychology', 'icon': Icons.psychology_rounded, 'label': 'Data Structures'},
     ];
 
     return SingleChildScrollView(

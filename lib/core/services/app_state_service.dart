@@ -93,8 +93,8 @@ class AppStateService extends ChangeNotifier {
 
     try {
       _branding = AppBrandingConfig(
-      appName: 'OmniLearn',
-      appTagline: 'محرك التعلم الشامل — أي مجال، أي درس',
+      appName: 'مَسْرَاء (Masra)',
+      appTagline: 'منصة تعلّم البرمجيات وعلوم الحاسوب الشاملة',
       logoIcon: 'terminal',
       primaryColorValue: 0xFF4F46E5,
       accentColorValue: 0xFF047857,
@@ -184,7 +184,7 @@ class AppStateService extends ChangeNotifier {
     return AppUser(
       id: 'admin_root',
       name: 'عبودي',
-      email: 'abodi@omnilearn.app',
+      email: 'abodi@masra.app',
       username: 'abodi',
       salt: salt,
       passwordHash: PasswordHasher.hash('1234', salt),

@@ -774,7 +774,7 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
                     ),
                     const Divider(height: 24),
 
-                    const Text('3. السؤال التفاعلي المحلول (بالعربية):', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('3. السؤال التفاعلي (اختياري بالكامل):', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: Space.xs),
                     DropdownButtonFormField<QuizType>(
                       value: selectedQuizType,
@@ -1076,27 +1076,29 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
             codeSnippet: safeCodeSnippet.isNotEmpty ? safeCodeSnippet : null,
           ).toJson(),
         ],
-        'quizzes': [
-          QuizQuestion(
-            id: 'q_${DateTime.now().millisecondsSinceEpoch}',
-            type: quizType,
-            prompt: safePromptAr.isNotEmpty ? safePromptAr : 'سؤال اختباري تفاعلي',
-            promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
-            explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
-            explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
-            optionsList: [
-              QuizOption(
-                text: safeCorrect.isNotEmpty ? safeCorrect : 'الخيار الصحيح',
-                isCorrect: true,
-              ),
-              QuizOption(
-                text: safeWrong.isNotEmpty ? safeWrong : 'الخيار البديل',
-                isCorrect: false,
-                whyWrong: safeWhyWrong.isNotEmpty ? safeWhyWrong : 'خيار غير دقيق برمجياً.',
-              ),
-            ],
-          ).toJson(),
-        ],
+        'quizzes': safePromptAr.isNotEmpty
+            ? [
+                QuizQuestion(
+                  id: 'q_${DateTime.now().millisecondsSinceEpoch}',
+                  type: quizType,
+                  prompt: safePromptAr,
+                  promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
+                  explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
+                  explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
+                  optionsList: [
+                    QuizOption(
+                      text: safeCorrect.isNotEmpty ? safeCorrect : 'الخيار الصحيح',
+                      isCorrect: true,
+                    ),
+                    QuizOption(
+                      text: safeWrong.isNotEmpty ? safeWrong : 'الخيار البديل',
+                      isCorrect: false,
+                      whyWrong: safeWhyWrong.isNotEmpty ? safeWhyWrong : 'خيار غير دقيق برمجياً.',
+                    ),
+                  ],
+                ).toJson(),
+              ]
+            : <Map<String, dynamic>>[],
         'updatedAt': DateTime.now().toIso8601String(),
       };
       // يبقى الدرس معتمداً للطلاب دون أي انقطاع مع حفظ رسالة المراجعة
@@ -1146,27 +1148,29 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
           codeSnippet: safeCodeSnippet.isNotEmpty ? safeCodeSnippet : null,
         ),
       ],
-      quizzes: [
-        QuizQuestion(
-          id: 'q_${DateTime.now().millisecondsSinceEpoch}',
-          type: quizType,
-          prompt: safePromptAr.isNotEmpty ? safePromptAr : 'سؤال اختباري تفاعلي',
-          promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
-          explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
-          explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
-          optionsList: [
-            QuizOption(
-              text: safeCorrect.isNotEmpty ? safeCorrect : 'الخيار الصحيح',
-              isCorrect: true,
-            ),
-            QuizOption(
-              text: safeWrong.isNotEmpty ? safeWrong : 'الخيار البديل',
-              isCorrect: false,
-              whyWrong: safeWhyWrong.isNotEmpty ? safeWhyWrong : 'خيار غير دقيق برمجياً.',
-            ),
-          ],
-        ),
-      ],
+      quizzes: safePromptAr.isNotEmpty
+          ? [
+              QuizQuestion(
+                id: 'q_${DateTime.now().millisecondsSinceEpoch}',
+                type: quizType,
+                prompt: safePromptAr,
+                promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
+                explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
+                explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
+                optionsList: [
+                  QuizOption(
+                    text: safeCorrect.isNotEmpty ? safeCorrect : 'الخيار الصحيح',
+                    isCorrect: true,
+                  ),
+                  QuizOption(
+                    text: safeWrong.isNotEmpty ? safeWrong : 'الخيار البديل',
+                    isCorrect: false,
+                    whyWrong: safeWhyWrong.isNotEmpty ? safeWhyWrong : 'خيار غير دقيق برمجياً.',
+                  ),
+                ],
+              ),
+            ]
+          : <QuizQuestion>[],
     );
 
     state.addLessonToModule(

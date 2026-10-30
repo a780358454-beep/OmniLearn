@@ -328,6 +328,44 @@ class _TimerWidgetState extends State<TimerWidget> {
                     orderIndex: 1,
                     xpReward: 50,
                     status: ContentStatus.published,
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''
+# الدليل الشامل لقواعد جاكوب نيلسن في سهولة الاستخدام (Heuristic Evaluation)
+
+وضع العالم **جاكوب نيلسن (Jakob Nielsen)** عشر قواعد استكشافية تُعد المعيار الذهبي عالمياً في تصميم وتقييم واجهات المستخدم وتجربة الاستخدام (UX/UI).
+
+---
+
+### 1. الرؤية لحالة النظام (Visibility of System Status)
+* **المفهوم:** يجب أن يكون النظام شفافاً، يخبر المستخدم باستمرار بما يجري في الوقت الفعلي عبر مؤشرات وتغذية راجعة (Feedback) مناسبة ومفهومة.
+* **الأهمية البرمجية:** منع المستخدم من تكرار النقر على الأزرار (مثل زر الدفع)، وتفادي الشعور بتجمد التطبيق أو انهياره.
+
+---
+
+### 2. مصفوفة التطبيقات العملية لقواعد نيلسن
+| القاعدة | المشكلة التي تعالجها | الحل البرمجي في الواجهات |
+| :--- | :--- | :--- |
+| **الرؤية لحالة النظام** | ارتباك المستخدم أثناء العمليات الطويلة | شريط تقدم (Progress Bar) أو مؤشر تحميل (Spinner) |
+| **التوافق مع العالم الحقيقي** | استخدام مصطلحات تقنية جافة | استخدام كلمات ومفاهيم مألوفة للمستخدم اليومي |
+| **حرية وتحكم المستخدم** | اتخاذ إجراء غير مقصود بالخطأ | زر التراجع (Undo) وإلغاء العملية بسلاسة |
+| **الاتساق والمعايير** | اختلاف تصميم العناصر في الشاشات | اعتماد نظام تصميم موحد (Design System / Design Tokens) |
+
+---
+
+### 3. مثال برمجي عملي في Flutter لتغذية المستخدم الراجعة
+```dart
+ElevatedButton(
+  onPressed: _isLoading ? null : _handleUpload,
+  child: _isLoading
+      ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+        )
+      : const Text('رفع الملف الآن'),
+);
+```
+''',
                     cards: [
                       LessonCard(
                         title: 'القاعدة الأولى لجاكوب نيلسن',
@@ -381,6 +419,27 @@ class _TimerWidgetState extends State<TimerWidget> {
                     orderIndex: 1,
                     xpReward: 50,
                     status: ContentStatus.published,
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''
+# التصميم التجريبي القبلي والبعدي في أبحاث البرمجيات (Pre/Post Test Design)
+
+يُعتبر منهج **التصميم التجريبي (Empirical Software Engineering)** الأساس العلمي لاختبار الفرضيات البرمجية وقياس فاعلية أدوات التعلم والتقنيات الحديثة بعيداً عن الانطباعات الذاتية.
+
+---
+
+### 1. تصنيف المتغيرات العلمية
+1. **المتغير المستقل (Independent Variable):** هو العامل الذي يتحكم فيه الباحث ويغيره عمداً لدراسة أثره (مثل: استخدام نمط البطاقات التفاعلية مقابل القراءة التقليدية).
+2. **المتغير التابع (Dependent Variable):** النتيجة أو السلوك الذي يتم قياسه وملاحظته (مثل: سرعة كتابة الكود البرمجي، دقة حل الاختبارات، ونقاط الخبرة XP).
+3. **المتغيرات الضابطة (Controlled Variables):** عوامل يتم تثبيتها لمنع التحيز (مثل: مستوى الخبرة المسبقة للمتعلمين، ونوع الجهاز المستخدم).
+
+---
+
+### 2. مصفوفة مقارنة المجموعات
+| المجموعة | المعاملة التجريبية (Treatment) | هدف القياس |
+| :--- | :--- | :--- |
+| **المجموعة التجريبية (Experimental Group)** | استخدام منصة "مَسْرَاء" التفاعلية | قياس التحسن المنسوب للأداة الجديدة |
+| **المجموعة الضابطة (Control Group)** | الدراسة بالطريقة التقليدية غير التفاعلية | توفير خط الأساس (Baseline) للمقارنة |
+''',
                     cards: [
                       LessonCard(
                         title: 'ما هو المتغير المستقل والمتغير التابع؟',
@@ -392,7 +451,7 @@ class _TimerWidgetState extends State<TimerWidget> {
                       QuizQuestion(
                         id: 'q_res_1',
                         type: QuizType.singleChoice,
-                        prompt: 'في دراسة تقيس أثر تطبيق OmniLearn على سرعة فهم الطلاب، ما هو المتغير المستقل؟',
+                        prompt: 'في دراسة تقيس أثر تطبيق مَسْرَاء (Masra) على سرعة فهم الطلاب، ما هو المتغير المستقل؟',
                         explanation: 'المتغير المستقل هو الأداة أو التدخل التجريبي الذي يطبقه الباحث (التطبيق).',
                         optionsList: [
                           QuizOption(text: 'درجات الطلاب وسرعة إجابتهم', isCorrect: false, whyWrong: 'درجات الطلاب وسرعتهم هي المتغير التابع (النتيجة المقاسة).'),
@@ -434,6 +493,39 @@ class _TimerWidgetState extends State<TimerWidget> {
                     orderIndex: 1,
                     xpReward: 50,
                     status: ContentStatus.published,
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''
+# مبادئ ACID وموثوقية المعاملات المؤسسية والمصرفية
+
+في أنظمة المؤسسات الضخمة وقواعد البيانات الموزعة، تضمن قواعد **ACID** سلامة البيانات ومنع أي تلاعب أو تلف في السجلات الحساسة، خصوصاً في العمليات المصرفية ودفاتر الحسابات الرقمية.
+
+---
+
+### 1. الركائز الأربع لمبادئ ACID
+| الحرف | المبدأ الإنجليزي | المعنى بالعربية | الأهمية والتطبيق العملي |
+| :--- | :--- | :--- | :--- |
+| **A** | **Atomicity** | الذرية | العملية وحدة واحدة لا تتجزأ (الكل أو لا شيء - All or Nothing). إذا فشلت أي خطوة يُلغى كل شيء (Rollback). |
+| **C** | **Consistency** | الاتساق | نقل قاعدة البيانات دائماً من حالة صحيحة إلى حالة صحيحة أخرى دون كسر القيود والمحددات. |
+| **I** | **Isolation** | العزل | المعاملات المتزامنة لا تؤثر على بعضها؛ كأن كلاً منها تعمل وحيدة في النظام لمنع قراءة البيانات غير المكتملة. |
+| **D** | **Durability** | الاستمرارية | بمجرد تأكيد المعاملة (Commit)، تحفظ التغييرات في التخزين الدائم ولا تضيع حتى عند انقطاع التيار الكهربائي. |
+
+---
+
+### 2. الكود البرمجي لضمان الذرية في قواعد البيانات
+```sql
+BEGIN TRANSACTION;
+  -- خصم الرصيد من حساب المرسل
+  UPDATE accounts SET balance = balance - 500 WHERE id = 'acc_user_1';
+  
+  -- إيداع الرصيد في حساب المستلم
+  UPDATE accounts SET balance = balance + 500 WHERE id = 'acc_user_2';
+  
+  -- إذا نجحت العمليتان معاً يتم الاعتماد النهائي
+COMMIT;
+-- في حال حدوث أي خطأ برمجي أو انقطاع شبكة:
+-- ROLLBACK;
+```
+''',
                     cards: [
                       LessonCard(
                         title: 'ماذا تعني الذرية (Atomicity)؟',
@@ -487,6 +579,28 @@ class _TimerWidgetState extends State<TimerWidget> {
                     orderIndex: 1,
                     xpReward: 50,
                     status: ContentStatus.published,
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''
+# الميثاق الأخلاقي لمهندسي البرمجيات والمسؤولية المهنية (ACM/IEEE Code of Ethics)
+
+تتعدى مسؤولية مهندس البرمجيات كتابة كود خالٍ من الأخطاء؛ إذ يحمل المهندس واجباً أخلاقياً لحماية سلامة وخصوصية المجتمع الرقمي ومستخدمي التطبيقات.
+
+---
+
+### 1. المبادئ الجوهرية لميثاق ACM / IEEE
+1. **المصلحة العامة أولاً (Public Interest):** يجب أن يوافق مهندسو البرمجيات على أن مصلحة الجمهور وسلامته تعلو دائماً فوق المصالح التجارية الشخصية أو مصالح أصحاب العمل.
+2. **العميل وصاحب العمل (Client & Employer):** العمل بأقصى درجات الإخلاص بما يتوافق مع المصلحة العامة.
+3. **المنتج الآمن والموثوق (Product):** التأكد من أن البرمجيات تلبي أعلى المعايير المهنية الممكنة قبل طرحها للمستخدمين.
+
+---
+
+### 2. مصفوفة التعامل مع المعضلات الأخلاقية
+| الموقف | الإجراء الخاطئ وغير الأخلاقي | الممارسة المهنية السليمة |
+| :--- | :--- | :--- |
+| **اكتشاف ثغرة تسرب بيانات قبل الإطلاق** | إخفاء الثغرة لعدم تفويت موعد النشر | توثيق الخطر كتابياً وإيقاف النشر حتى ترقيعها |
+| **طلب جمع بيانات حساسة بدون علم المستخدم** | تتبع المستخدمين سراً لأغراض إعلانية | الالتزام الصارم بمبدأ الموافقة المسبقة والشفافية |
+| **استخدام مكتبات مفتوحة المصدر دون ترخيص** | تجاهل بنود الترخيص وحقوق الملكية | الالتزام بتراخيص البرمجيات ونسب الفضل لأصحابه |
+''',
                     cards: [
                       LessonCard(
                         title: 'المصلحة العامة أولاً (Public Interest)',
@@ -552,6 +666,52 @@ class _TimerWidgetState extends State<TimerWidget> {
                     xpReward: 50,
                     status: ContentStatus.published,
                     creatorId: 'admin',
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''
+# الدليل الشامل لمعمارية واجهات البرمجة RESTful APIs
+
+تُعد معمارية **REST (Representational State Transfer)** الركيزة الأساسية لتطوير تطبيقات الويب والهواتف الحديثة، وتتيح تبادل البيانات بين الخوادم والعملاء بشكل موثوق وخفيف.
+
+---
+
+### 1. خصائص معمارية REST
+* **انعدام الحالة (Statelessness):** كل طلب من العميل يحتوي على كافة المعلومات اللازمة لمعالجته؛ الخادم لا يخزن حالة الجلسة بين الطلبات.
+* **الاعتماد على الموارد (Resource-Based):** كل معلومة أو كيان (مستخدم، دورة، درس) يُمثَّل برابط فريد (URI).
+* **تنسيق JSON القياسي:** تبادل البيانات بهيكل نصي خفيف وسهل القراءة برمجياً.
+
+---
+
+### 2. أفعال HTTP القياسية (HTTP Methods)
+| الفعل | المعنى البرمجي | هل هو آمن؟ (Safe) | هل هو متكرر النتيجة؟ (Idempotent) | الاستخدام |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | قراءة واسترجاع | نعم | نعم | جلب قائمة الدروس أو بيانات مستخدم |
+| **POST** | إنشاء جديد | لا | لا | تسجيل حساب جديد أو رفع درس جديد |
+| **PUT** | استبدال كامل | لا | نعم | تحديث كامل بيانات الدرس القائم |
+| **PATCH** | تعديل جزئي | لا | لا | تعديل عنوان الدرس فقط |
+| **DELETE** | حذف وإزالة | لا | نعم | إزالة المورد نهائياً من قاعدة البيانات |
+
+---
+
+### 3. تطبيق عملي لاستدعاء واجهة برمجة في Dart / Flutter
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<List<Course>> fetchCourses() async {
+  final url = Uri.parse('https://api.masra.app/v1/courses');
+  final response = await http.get(url, headers: {
+    'Accept': 'application/json',
+  });
+
+  if (response.statusCode == 200) {
+    final List<dynamic> data = jsonDecode(response.body);
+    return data.map((json) => Course.fromJson(json)).toList();
+  } else {
+    throw Exception('فشل تحميل المقررات: HTTP \${response.statusCode}');
+  }
+}
+```
+''',
                     cards: [
                       LessonCard(
                         title: 'ما هي الـ REST API؟',
@@ -565,7 +725,7 @@ class _TimerWidgetState extends State<TimerWidget> {
                         titleEn: 'Standard HTTP Methods',
                         content: '• GET: جلب وقراءة المورد دون تعديل.\n• POST: إنشاء مورد جديد.\n• PUT: استبدال وتحديث المورد كاملاً.\n• DELETE: حذف المورد.',
                         contentEn: '• GET: Read resource.\n• POST: Create new resource.\n• PUT: Full update.\n• DELETE: Remove resource.',
-                        codeSnippet: 'fetch("https://api.codesphere.dev/v1/courses")\n  .then(res => res.json())\n  .then(data => console.log(data));',
+                        codeSnippet: 'fetch("https://api.masra.app/v1/courses")\n  .then(res => res.json())\n  .then(data => console.log(data));',
                         calloutType: 'tip',
                       ),
                     ],
@@ -628,6 +788,60 @@ class _TimerWidgetState extends State<TimerWidget> {
                     xpReward: 60,
                     status: ContentStatus.published,
                     creatorId: 'admin',
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''
+# الدليل الشامل لتحليل التعقيد الحسابي وخوارزميات Big-O Notation
+
+في علوم الحاسوب، لا نقيس كفاءة الخوارزمية بالثواني لأن سرعة المعالج تختلف بين الأجهزة؛ بل نقيسها بعدد العمليات الأساسية مع نمو حجم المدخلات **N** باستخدام مقياس **Big-O Notation**.
+
+---
+
+### 1. لماذا نستخدم Big-O؟
+* **التجريد عن العتاد (Hardware Independence):** قياس رياضي موضوعي خالص.
+* **التركيز على أسوأ الحالات (Worst-Case Scenario):** ضمان أن الخوارزمية لن تنهار مهما بلغ حجم البيانات.
+* **إهمال الثوابت والحدود الصغرى:** عندما يكون N كبيراً جداً، فإن O(2N + 5) تُبسط رياضياً إلى O(N).
+
+---
+
+### 2. جدول مقارنة التعقيدات الحسابية الشائعة
+| الرمز | الاسم الإنجليزي | التقييم | مثال عملي شهير |
+| :--- | :--- | :--- | :--- |
+| **O(1)** | Constant Time | مثالي وخارق | الوصول لعنصر في مصفوفة بواسطة الـ Index |
+| **O(log N)** | Logarithmic Time | ممتاز جداً | البحث الثنائي (Binary Search) في قائمة مرتبة |
+| **O(N)** | Linear Time | جيد ومقبول | البحث الخطي أو المرور على كافة العناصر |
+| **O(N log N)** | Linearithmic | كفء للترتيب | خوارزمية Merge Sort و Quick Sort |
+| **O(N^2)** | Quadratic Time | بطيء وغير محبذ | الحلقات المتداخلة (Bubble Sort) |
+| **O(2^N)** | Exponential Time | كارثي | حل مسألة حقيبة الظهر بالبحث الشامل |
+
+---
+
+### 3. أمثلة برمجية مقارنة في Dart
+```dart
+// 1. O(1) - زمن ثابت لا يتأثر بطول القائمة
+int getFirstElement(List<int> numbers) {
+  return numbers.isNotEmpty ? numbers[0] : 0;
+}
+
+// 2. O(N) - زمن خطي ينمو طردياً مع حجم القائمة
+int calculateSum(List<int> numbers) {
+  int total = 0;
+  for (final n in numbers) {
+    total += n;
+  }
+  return total;
+}
+
+// 3. O(N^2) - حلقات متداخلة (احذر منها مع البيانات الضخمة)
+bool hasDuplicatePairs(List<int> numbers) {
+  for (int i = 0; i < numbers.length; i++) {
+    for (int j = i + 1; j < numbers.length; j++) {
+      if (numbers[i] == numbers[j]) return true;
+    }
+  }
+  return false;
+}
+```
+''',
                     cards: [
                       LessonCard(
                         title: 'لماذا نهتم بـ Big-O؟',

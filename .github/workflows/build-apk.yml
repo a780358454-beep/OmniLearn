@@ -91,8 +91,8 @@ jobs:
         if: success() && startsWith(github.ref, 'refs/heads/main')
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: "OmniLearn Release v1.0.${{ github.run_number }}"
-          body: "Official Android Release builds for OmniLearn Core Engine."
+          name: "Masra Release v1.0.${{ github.run_number }} (منصة مَسْرَاء)"
+          body: "الإصدار الرسمي لمنصة مَسْرَاء التعليمية (Masra Learning Platform) لنظام أندرويد."
           draft: false
           prerelease: false
           files: build/app/outputs/flutter-apk/*.apk

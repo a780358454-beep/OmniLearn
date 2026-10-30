@@ -29,12 +29,16 @@ class CloudSyncService extends ChangeNotifier {
   String _endpointUrl = '';
   String get endpointUrl => _endpointUrl;
 
+  String _apiKey = '';
+  String get apiKey => _apiKey;
+
   bool _initialized = false;
 
   Future<void> ensureInitialized() async {
     if (_initialized) return;
     _initialized = true;
     _endpointUrl = (await StorageRepository.loadCloudEndpoint()) ?? '';
+    _apiKey = (await StorageRepository.loadCloudApiKey()) ?? '';
     _lastSyncTime = await StorageRepository.loadLastSyncTime();
     notifyListeners();
   }
@@ -42,6 +46,12 @@ class CloudSyncService extends ChangeNotifier {
   Future<void> setEndpointUrl(String url) async {
     _endpointUrl = url.trim();
     await StorageRepository.saveCloudEndpoint(_endpointUrl);
+    notifyListeners();
+  }
+
+  Future<void> setApiKey(String key) async {
+    _apiKey = key.trim();
+    await StorageRepository.saveCloudApiKey(_apiKey);
     notifyListeners();
   }
 
@@ -73,6 +83,10 @@ class CloudSyncService extends ChangeNotifier {
       
       final request = await client.openUrl('PUT', uri);
       request.headers.contentType = ContentType.json;
+      if (_apiKey.isNotEmpty) {
+        request.headers.set('apikey', _apiKey);
+        request.headers.set('Authorization', 'Bearer $_apiKey');
+      }
       
       final payload = jsonEncode(curricula.map((c) => c.toJson()).toList());
       request.write(payload);
@@ -127,6 +141,10 @@ class CloudSyncService extends ChangeNotifier {
       final uri = Uri.parse(_endpointUrl);
       
       final request = await client.getUrl(uri);
+      if (_apiKey.isNotEmpty) {
+        request.headers.set('apikey', _apiKey);
+        request.headers.set('Authorization', 'Bearer $_apiKey');
+      }
       final response = await request.close().timeout(const Duration(seconds: 12));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {

@@ -20,11 +20,11 @@ Future<void> main() async {
     // لا نمنع الإقلاع مهما حدث؛ البوابة ستتعامل مع الحالة
   }
 
-  runApp(const OmniLearnApp());
+  runApp(const MasraApp());
 }
 
-class OmniLearnApp extends StatelessWidget {
-  const OmniLearnApp({Key? key}) : super(key: key);
+class MasraApp extends StatelessWidget {
+  const MasraApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

@@ -202,8 +202,8 @@ class AppBrandingConfig {
   };
 
   factory AppBrandingConfig.fromJson(Map<String, dynamic> json) => AppBrandingConfig(
-    appName: json['appName'] ?? 'OmniLearn',
-    appTagline: json['appTagline'] ?? 'Universal Learning Engine',
+    appName: json['appName'] ?? 'مَسْرَاء (Masra)',
+    appTagline: json['appTagline'] ?? 'منصة تعلّم البرمجيات وعلوم الحاسوب الشاملة',
     logoIcon: json['logoIcon'] ?? 'terminal',
     primaryColorValue: json['primaryColorValue'] ?? 0xFF4F46E5,
     accentColorValue: json['accentColorValue'] ?? 0xFF047857,

@@ -27,7 +27,7 @@ class I18nService extends ChangeNotifier {
   static const Map<String, Map<String, String>> _translations = {
     'ar': {
       // شريط التنقل والأدوار
-      'app_title': 'أومني ليرن | محرك التعلم الشامل',
+      'app_title': 'مَسْرَاء | منصة تعلّم البرمجيات الشاملة',
       'switch_role': 'معاينة الأدوار السريعة (Demo)',
       'role_admin': 'مدير النظام (Admin)',
       'role_creator': 'مؤلف المحتوى (Creator)',
@@ -257,7 +257,7 @@ class I18nService extends ChangeNotifier {
     },
     'en': {
       // Nav & Roles
-      'app_title': 'OmniLearn | Universal Learning Engine',
+      'app_title': 'Masra | Comprehensive Computer Science Learning Platform',
       'switch_role': 'Role Preview (Demo)',
       'role_admin': 'System Administrator',
       'role_creator': 'Content Creator',
