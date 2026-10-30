@@ -1084,14 +1084,15 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> with SingleTicker
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              final newPass = await state.resetUserPassword(user.id);
+              const tempPass = '123456';
+              final res = await state.resetUserPassword(user.id, tempPass);
               if (ctx.mounted) Navigator.pop(ctx);
-              if (context.mounted && newPass != null) {
+              if (context.mounted && res.ok) {
                 showDialog(
                   context: context,
                   builder: (c) => AlertDialog(
                     title: const Text('كلمة السر الجديدة'),
-                    content: SelectableText('كلمة السر الجديدة للمستخدم: $newPass'),
+                    content: const SelectableText('كلمة السر المؤقتة للمستخدم: 123456\n(سيلزم بتغييرها عند أول دخول)'),
                     actions: [
                       ElevatedButton(
                         onPressed: () => Navigator.pop(c),

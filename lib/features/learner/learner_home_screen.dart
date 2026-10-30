@@ -360,7 +360,7 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                       ),
                     ),
                     InkWell(
-                      onTap: () => _showAllMaterialsModal(context, state, cur, i18n),
+                      onTap: () => _openAllCoursesModal(context, state, i18n),
                       child: Text(
                         i18n.t('switch_curriculum'),
                         style: AppTypography.caption.copyWith(
