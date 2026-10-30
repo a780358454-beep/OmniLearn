@@ -18,6 +18,8 @@ class AuthResult {
         message = null;
 
   const AuthResult.fail(this.message) : success = false;
+
+  bool get ok => success;
 }
 
 class AppStateService extends ChangeNotifier {
