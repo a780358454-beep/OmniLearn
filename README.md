@@ -47,9 +47,14 @@ git push -u origin main
 
 ---
 
-## 📚 وثائق المشروع المعمارية
+## 📚 وثائق المشروع المعمارية والخطط
 
-* [الدليل المعماري للنواة وطريقة استنساخها (ARCHITECTURE.md)](docs/ARCHITECTURE.md)
-* [دليل أنواع الاختبارات السبعة (QUIZ_TYPES_GUIDE.md)](docs/QUIZ_TYPES_GUIDE.md)
-* [دليل واستخدامات لوحة تحكم الأدمن (ADMIN_GUIDE.md)](docs/ADMIN_GUIDE.md)
-* [خارطة طريق التطوير المستقبلية (ROADMAP.md)](docs/ROADMAP.md)
+* 🏛️ [المعمارية البرمجية وطريقة استنساخ النواة (ARCHITECTURE.md)](docs/ARCHITECTURE.md)
+* 🛠️ [حزمة التقنيات والمكتبات المعتمدة وسبب اختيارها (TECH_STACK.md)](docs/TECH_STACK.md)
+* 🗺️ [خطة العمل والمراحل التنفيذية (PLAN.md)](docs/PLAN.md)
+* 📊 [حالة المشروع الفعلية وسجل الأعطال المحلولة (STATUS.md)](docs/STATUS.md)
+* 💡 [الدروس المستفادة وقواعد منع الأخطاء البرمجية (LESSONS_LEARNED.md)](docs/LESSONS_LEARNED.md)
+* 🎯 [سجل الميزات ومعايير القبول (FEATURES.md)](docs/FEATURES.md)
+* ❓ [دليل أنواع الاختبارات التفاعلية السبعة (QUIZ_TYPES_GUIDE.md)](docs/QUIZ_TYPES_GUIDE.md)
+* 🛡️ [دليل واستخدامات لوحة تحكم الأدمن (ADMIN_GUIDE.md)](docs/ADMIN_GUIDE.md)
+* 🚀 [خارطة طريق التطوير المستقبلية (ROADMAP.md)](docs/ROADMAP.md)
