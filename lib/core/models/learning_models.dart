@@ -32,7 +32,9 @@ enum QuizType {
   fillInBlank,    // ملء الفراغات
   pairMatching,   // مطابقة المفاهيم والأزواج
   trueFalse,      // صح أو خطأ مع تعليل
-  caseStudy,      // تحدي دراسة حالة وسيناريو تحليلي
+  caseStudy;      // تحدي دراسة حالة وسيناريو تحليلي
+
+  static const QuizType reorder = QuizType.codeOrdering;
 }
 
 /// تصنيفات المجالات والمسارات البرمجية حصراً (Coding & CS Only)

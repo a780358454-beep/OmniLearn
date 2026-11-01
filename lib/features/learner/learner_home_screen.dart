@@ -667,11 +667,13 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                                   icon: const Icon(Icons.delete_outline_rounded, size: 18, color: ColorTokens.error),
                                   tooltip: i18n.t('delete_course'),
                                   onPressed: () {
+                                    if (activeCourse == null) return;
+                                    final courseToDelete = activeCourse!;
                                     _confirmDelete(
                                       context: context,
-                                      title: '${i18n.t('delete_course')}: ${activeCourse.title}',
+                                      title: '${i18n.t('delete_course')}: ${courseToDelete.title}',
                                       onConfirm: () {
-                                        state.adminDeleteCourse(activeCourse.id);
+                                        state.adminDeleteCourse(courseToDelete.id);
                                         setState(() {
                                           _selectedCourseId = null;
                                         });

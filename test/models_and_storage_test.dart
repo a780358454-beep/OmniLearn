@@ -314,9 +314,9 @@ void main() {
       expect(oopLesson.articleContent, contains('Encapsulation'));
 
       // التحقق من احتواء الدورة المرجعية على سؤال ترتيب بسحب وإفلات
-      final reorderQuiz = oopLesson.quizzes.firstWhere((q) => q.type == QuizType.reorder);
+      final reorderQuiz = oopLesson.quizzes.firstWhere((q) => q.type == QuizType.codeOrdering);
       expect(reorderQuiz.items, isNotNull);
-      expect(reorderQuiz.items!.length, 5);
+      expect(reorderQuiz.items.length, 5);
       expect(reorderQuiz.correctIndices, [0, 1, 2, 3, 4]);
 
       // التحقق من مسار الموبايل ومسار الأمن السيبراني

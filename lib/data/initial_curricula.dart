@@ -717,7 +717,7 @@ class BankAccount {
                     quizzes: [
                       QuizQuestion(
                         id: 'q_oop_reorder_lifecycle',
-                        type: QuizType.reorder,
+                        type: QuizType.codeOrdering,
                         prompt: 'رتب مراحل دورة حياة الكائن (Object Lifecycle) من البداية للنهاية:',
                         explanation: 'تبدأ دورة حياة الكائن باستدعاء الباني، يليه حجز الذاكرة وتهيئة الحقول، ثم الاستخدام، وأخيراً تفريغ الذاكرة بواسطة الـ Garbage Collector.',
                         orderItems: [
@@ -863,7 +863,7 @@ void printPayroll(List<Employee> team) {
                       ),
                       QuizQuestion(
                         id: 'q_exam_oop_2',
-                        type: QuizType.reorder,
+                        type: QuizType.codeOrdering,
                         prompt: 'رتب طبقات مبادئ SOLID من الحرف الأول للأخير:',
                         explanation: 'ترتيب مبادئ SOLID: SRP, OCP, LSP, ISP, DIP.',
                         orderItems: [
@@ -1271,7 +1271,7 @@ bool hasDuplicatePairs(List<int> numbers) {
                     quizzes: [
                       QuizQuestion(
                         id: 'q_sec_cia_1',
-                        type: QuizType.reorder,
+                        type: QuizType.codeOrdering,
                         prompt: 'رتب عناصر ثالوث الأمان CIA حسب الحروف الإنجليزية:',
                         explanation: 'ترتيب CIA: السرية (Confidentiality)، النزاهة (Integrity)، التوافر (Availability).',
                         orderItems: [

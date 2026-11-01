@@ -1051,7 +1051,7 @@ void main() {
                             ),
                             items: const [
                               DropdownMenuItem(value: QuizType.singleChoice, child: Text('اختيار من متعدد (Single Choice)')),
-                              DropdownMenuItem(value: QuizType.reorder, child: Text('سحب وترتيب منطقي (Drag & Drop Reorder)')),
+                              DropdownMenuItem(value: QuizType.codeOrdering, child: Text('سحب وترتيب منطقي (Drag & Drop Reorder)')),
                             ],
                             onChanged: (val) {
                               if (val != null) setDState(() => selectedQuizType = val);
@@ -1069,7 +1069,7 @@ void main() {
                           const SizedBox(height: Space.sm),
 
                           // محتوى نوع السؤال
-                          if (selectedQuizType == QuizType.reorder) ...[
+                          if (selectedQuizType == QuizType.codeOrdering) ...[
                             Text(
                               i18n.t('reorder_instructions'),
                               style: TextStyle(
@@ -1377,11 +1377,11 @@ void main() {
               promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
               explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
               explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
-              orderItems: quizType == QuizType.reorder ? List.from(reorderItems) : null,
-              correctIndices: quizType == QuizType.reorder
+              orderItems: quizType == QuizType.codeOrdering ? List.from(reorderItems) : null,
+              correctIndices: quizType == QuizType.codeOrdering
                   ? List.generate(reorderItems.length, (i) => i)
                   : [0],
-              optionsList: quizType == QuizType.reorder
+              optionsList: quizType == QuizType.codeOrdering
                   ? []
                   : [
                       QuizOption(
