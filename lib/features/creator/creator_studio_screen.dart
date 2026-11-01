@@ -600,10 +600,14 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     final lessonSummaryArC = TextEditingController(text: existingLesson?.summary ?? '');
     final lessonSummaryEnC = TextEditingController(text: existingLesson?.summaryEn ?? '');
 
+    // مفاتيح التفعيل المكونة ومحتوياتها (Component Toggles)
+    bool enableHarmash = existingLesson?.articleContent != null && existingLesson!.articleContent!.isNotEmpty;
+    final articleContentC = TextEditingController(text: existingLesson?.articleContent ?? '');
+
     final existingCard = existingLesson != null && existingLesson.cards.isNotEmpty
         ? existingLesson.cards.first
         : null;
-
+    bool enableCards = existingLesson == null || existingLesson.cards.isNotEmpty;
     final cardTitleArC = TextEditingController(text: existingCard?.title ?? '');
     final cardTitleEnC = TextEditingController(text: existingCard?.titleEn ?? '');
     final cardContentArC = TextEditingController(text: existingCard?.content ?? '');
@@ -613,7 +617,7 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     final existingQuiz = existingLesson != null && existingLesson.quizzes.isNotEmpty
         ? existingLesson.quizzes.first
         : null;
-
+    bool enableQuiz = existingLesson != null && existingLesson.quizzes.isNotEmpty;
     QuizType selectedQuizType = existingQuiz?.type ?? QuizType.singleChoice;
     final quizPromptArC = TextEditingController(text: existingQuiz?.prompt ?? '');
     final quizPromptEnC = TextEditingController(text: existingQuiz?.promptEn ?? '');
@@ -639,31 +643,42 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     final wrongOptC = TextEditingController(text: initialWrong);
     final whyWrongC = TextEditingController(text: initialWhyWrong);
 
+    List<String> reorderItems = existingQuiz != null && existingQuiz.items.isNotEmpty
+        ? List.from(existingQuiz.items)
+        : ['الخطوة 1: استدعاء الدالة', 'الخطوة 2: معالجة البيانات', 'الخطوة 3: إرجاع النتيجة'];
+    final newReorderItemC = TextEditingController();
+
     int selectedTab = 0; // 0: عربي (RTL), 1: English & Code (LTR)
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(RadiusTokens.dialog),
+          ),
           title: Row(
             children: [
               Icon(
                 isEditing ? Icons.edit_note_rounded : Icons.post_add_rounded,
                 color: Theme.of(context).colorScheme.primary,
-                size: 22,
+                size: 24,
               ),
               const SizedBox(width: Space.sm),
-              Text(
-                isEditing
-                    ? '${i18n.t('edit_and_resubmit')}: ${existingLesson.title}'
-                    : i18n.t('contribute_lesson'),
-                style: const TextStyle(fontSize: 16),
+              Expanded(
+                child: Text(
+                  isEditing
+                      ? '${i18n.t('edit_and_resubmit')}: ${existingLesson.title}'
+                      : i18n.t('contribute_lesson'),
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
           content: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
+              constraints: const BoxConstraints(maxWidth: 580),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -740,179 +755,457 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
                   ),
                   const SizedBox(height: Space.md),
 
-                  // عرض القسم بحسب التبويب المختار
-                  if (selectedTab == 0) ...[
-                    // --- القسم العربي (RTL) ---
-                    const Text('1. عنوان وملخص الدرس (بالعربية):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: Space.xs),
-                    TextField(
-                      controller: lessonTitleArC,
-                      textDirection: TextDirection.rtl,
-                      decoration: InputDecoration(labelText: i18n.t('lesson_title_hint')),
+                  // ==================== الخطوة 1: الهوية والتشخيص ====================
+                  Container(
+                    padding: const EdgeInsets.all(Space.md),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(RadiusTokens.card),
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                     ),
-                    const SizedBox(height: Space.sm),
-                    TextField(
-                      controller: lessonSummaryArC,
-                      textDirection: TextDirection.rtl,
-                      decoration: InputDecoration(labelText: i18n.t('lesson_summary_hint')),
-                    ),
-                    const Divider(height: 24),
-
-                    const Text('2. بطاقة الشرح البرمجية (بالعربية):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: Space.xs),
-                    TextField(
-                      controller: cardTitleArC,
-                      textDirection: TextDirection.rtl,
-                      decoration: InputDecoration(labelText: i18n.t('card_title_hint')),
-                    ),
-                    const SizedBox(height: Space.sm),
-                    TextField(
-                      controller: cardContentArC,
-                      textDirection: TextDirection.rtl,
-                      maxLines: 2,
-                      decoration: InputDecoration(labelText: i18n.t('card_content_hint')),
-                    ),
-                    const Divider(height: 24),
-
-                    const Text('3. السؤال التفاعلي (اختياري بالكامل):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: Space.xs),
-                    DropdownButtonFormField<QuizType>(
-                      value: selectedQuizType,
-                      decoration: InputDecoration(labelText: i18n.t('select_quiz_type')),
-                      items: QuizType.values.map((qt) {
-                        return DropdownMenuItem(value: qt, child: Text(qt.name));
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) setDState(() => selectedQuizType = val);
-                      },
-                    ),
-                    const SizedBox(height: Space.sm),
-                    TextField(
-                      controller: quizPromptArC,
-                      textDirection: TextDirection.rtl,
-                      decoration: InputDecoration(labelText: i18n.t('quiz_prompt_hint')),
-                    ),
-                    const SizedBox(height: Space.sm),
-                    TextField(
-                      controller: correctOptC,
-                      textDirection: TextDirection.rtl,
-                      decoration: InputDecoration(labelText: i18n.t('correct_opt_hint')),
-                    ),
-                    const SizedBox(height: Space.sm),
-                    TextField(
-                      controller: wrongOptC,
-                      textDirection: TextDirection.rtl,
-                      decoration: InputDecoration(labelText: i18n.t('wrong_opt_hint')),
-                    ),
-                    const SizedBox(height: Space.sm),
-                    TextField(
-                      controller: whyWrongC,
-                      textDirection: TextDirection.rtl,
-                      decoration: const InputDecoration(labelText: 'سبب خطأ الإجابة البديلة (whyWrong)'),
-                    ),
-                    const SizedBox(height: Space.sm),
-                    TextField(
-                      controller: quizExplanationArC,
-                      textDirection: TextDirection.rtl,
-                      decoration: InputDecoration(labelText: i18n.t('quiz_explanation_hint')),
-                    ),
-                  ] else ...[
-                    // --- القسم الإنجليزي والأكواد (LTR) ---
-                    const Text('1. Lesson Info (English LTR):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: Space.xs),
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: Column(
-                        children: [
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.badge_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: Space.xs),
+                            Text(
+                              i18n.t('step_1_identity'),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: Space.sm),
+                        if (selectedTab == 0) ...[
                           TextField(
-                            controller: lessonTitleEnC,
-                            decoration: InputDecoration(labelText: i18n.t('title_en_hint')),
+                            controller: lessonTitleArC,
+                            textDirection: TextDirection.rtl,
+                            decoration: InputDecoration(
+                              labelText: '${i18n.t('lesson_title_hint')} *',
+                              hintText: 'مثال: مقدمة إلى التغليف في OOP',
+                              border: const OutlineInputBorder(),
+                            ),
                           ),
                           const SizedBox(height: Space.sm),
                           TextField(
-                            controller: lessonSummaryEnC,
-                            decoration: InputDecoration(labelText: i18n.t('summary_en_hint')),
+                            controller: lessonSummaryArC,
+                            textDirection: TextDirection.rtl,
+                            decoration: InputDecoration(
+                              labelText: i18n.t('lesson_summary_hint'),
+                              hintText: 'ملخص موجز لمحتوى الدرس (اختياري)',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ] else ...[
+                          Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Column(
+                              children: [
+                                TextField(
+                                  controller: lessonTitleEnC,
+                                  decoration: InputDecoration(
+                                    labelText: i18n.t('title_en_hint'),
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                ),
+                                const SizedBox(height: Space.sm),
+                                TextField(
+                                  controller: lessonSummaryEnC,
+                                  decoration: InputDecoration(
+                                    labelText: i18n.t('summary_en_hint'),
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    const Divider(height: 24),
+                  ),
+                  const SizedBox(height: Space.md),
 
-                    const Text('2. Explanation & Code (English LTR):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: Space.xs),
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: cardTitleEnC,
-                            decoration: InputDecoration(labelText: i18n.t('card_title_en_hint')),
-                          ),
-                          const SizedBox(height: Space.sm),
-                          TextField(
-                            controller: cardContentEnC,
-                            maxLines: 2,
-                            decoration: InputDecoration(labelText: i18n.t('card_content_en_hint')),
-                          ),
-                          const SizedBox(height: Space.sm),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
-                              borderRadius: BorderRadius.circular(RadiusTokens.card),
-                              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                  // ==================== الخطوة 2: اقتراح هيكل الدرس الذكي ====================
+                  Container(
+                    padding: const EdgeInsets.all(Space.md),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                          Theme.of(context).colorScheme.primary.withOpacity(0.03),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(RadiusTokens.card),
+                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.amber),
+                            const SizedBox(width: Space.xs),
+                            Text(
+                              i18n.t('step_2_builder'),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             ),
-                            padding: const EdgeInsets.all(Space.sm),
-                            child: TextField(
-                              controller: codeSnippetC,
-                              maxLines: 4,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 12,
-                                color: ColorTokens.accentGreen,
-                              ),
+                          ],
+                        ),
+                        const SizedBox(height: Space.xs),
+                        Text(
+                          'وفّر وقتك! انقر لملء نموذج هيكل درس متكامل (مقدمة، شرح معماري، مثال، وبطاقات وأسئلة):',
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: Space.sm),
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            setDState(() {
+                              if (lessonTitleArC.text.isEmpty) {
+                                lessonTitleArC.text = 'مقدمة معمارية وتطبيق عملي';
+                              }
+                              if (lessonSummaryArC.text.isEmpty) {
+                                lessonSummaryArC.text = 'شرح تفاعلي معمق لمفاهيم هندسة البرمجيات والتطبيق الميداني.';
+                              }
+                              enableHarmash = true;
+                              articleContentC.text = '''# مقدمة شاملة وتطبيق عملي
+
+يعتبر هذا المفهوم حجر الزاوية في بناء وتطوير الأنظمة البرمجية الحديثة القابلة للصيانة والتوسع.
+
+---
+
+### 1. ما هو المفهوم؟
+شرح نظري دقيق ومبسط يركز على الفائدة الميدانية وكيفية معالجة التحديات البرمجية الشائعة.
+
+### 2. مثال برمجي توضيحي
+```dart
+void main() {
+  // نموذج تطبيقي مباشر قابل للتشغيل
+  print('منصة مَسْرَاء للتعليم البرمجي الاحترافي');
+}
+```
+
+### 3. أفضل الممارسات والنصائح
+* احرص دائماً على كتابة شيفرة واضحة ومقروءة تعتمد على مبادئ التصميم النظيف.
+* وثّق الدوال والمتغيرات بدقة لضمان سهولة العمل الجماعي.
+''';
+                              enableCards = true;
+                              cardTitleArC.text = 'المفهوم الجوهري';
+                              cardContentArC.text = 'ملخص سريع يوضح جوهر التقنية البرمجية وكيفية توظيفها في التطبيقات العملية.';
+                              codeSnippetC.text = '// خطوة تنفيذية سريعة\nvoid execute() {\n  print("تم التنفيذ بنجاح");\n}';
+                              enableQuiz = true;
+                              quizPromptArC.text = 'ما هو الهدف المعماري الأساسي من تطبيق هذا المفهوم في المشاريع البرمجية؟';
+                              correctOptC.text = 'تحسين جودة الشيفرة وقابليتها للصيانة والتوسع';
+                              wrongOptC.text = 'زيادة تعقيد البرنامج دون أي فائدة مرجوة';
+                              whyWrongC.text = 'الهدف دائماً هو تبسيط الصيانة وترشيد استهلاك الموارد.';
+                              quizExplanationArC.text = 'تطبيق المعايير النظيفة يضمن ديمومة النظام وسهولة صيانته وتطويره مستقبلاً.';
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(i18n.t('smart_suggest_applied'))),
+                            );
+                          },
+                          icon: const Icon(Icons.lightbulb_rounded, size: 16),
+                          label: Text(i18n.t('smart_suggest_btn')),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: Space.md),
+
+                  // ==================== الخطوة 3: مفاتيح التفعيل الاختيارية ====================
+                  Container(
+                    padding: const EdgeInsets.all(Space.md),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(RadiusTokens.card),
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.tune_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: Space.xs),
+                            Text(
+                              i18n.t('step_3_components'),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: Space.sm),
+
+                        // المفتاح 1: المقال المرجعي الشامل (Harmash Mode)
+                        SwitchListTile(
+                          value: enableHarmash,
+                          onChanged: (val) => setDState(() => enableHarmash = val),
+                          title: Text(i18n.t('toggle_harmash'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('شرح أكاديمي عميق مدعوم بالأكواد والجداول', style: TextStyle(fontSize: 11)),
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                        if (enableHarmash) ...[
+                          const SizedBox(height: Space.xs),
+                          TextField(
+                            controller: articleContentC,
+                            textDirection: TextDirection.rtl,
+                            maxLines: 6,
+                            decoration: const InputDecoration(
+                              labelText: 'محتوى المقال (Markdown)',
+                              hintText: '# عنوان المقال\n\nشرح المفاهيم والأمثلة البرمجية...',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: Space.md),
+                        ],
+
+                        const Divider(height: 16),
+
+                        // المفتاح 2: البطاقات التفاعلية (Sololearn Cards)
+                        SwitchListTile(
+                          value: enableCards,
+                          onChanged: (val) => setDState(() => enableCards = val),
+                          title: Text(i18n.t('toggle_sololearn'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('بطاقات سريعة متتالية للتعلم الخفيف', style: TextStyle(fontSize: 11)),
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                        if (enableCards) ...[
+                          const SizedBox(height: Space.xs),
+                          if (selectedTab == 0) ...[
+                            TextField(
+                              controller: cardTitleArC,
+                              textDirection: TextDirection.rtl,
                               decoration: InputDecoration(
-                                border: InputBorder.none,
-                                labelText: '${i18n.t('code_snippet')} (LTR Monospace)',
-                                labelStyle: const TextStyle(color: Colors.white70),
-                                hintText: '// Write pure code snippet here...',
-                                hintStyle: const TextStyle(color: Colors.white38),
+                                labelText: i18n.t('card_title_hint'),
+                                border: const OutlineInputBorder(),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 24),
-
-                    const Text('3. Quiz in English (Optional):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: Space.xs),
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: Column(
-                        children: [
+                            const SizedBox(height: Space.xs),
+                            TextField(
+                              controller: cardContentArC,
+                              textDirection: TextDirection.rtl,
+                              maxLines: 2,
+                              decoration: InputDecoration(
+                                labelText: i18n.t('card_content_hint'),
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
+                          ] else ...[
+                            Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Column(
+                                children: [
+                                  TextField(
+                                    controller: cardTitleEnC,
+                                    decoration: InputDecoration(
+                                      labelText: i18n.t('card_title_en_hint'),
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                  ),
+                                  const SizedBox(height: Space.xs),
+                                  TextField(
+                                    controller: cardContentEnC,
+                                    maxLines: 2,
+                                    decoration: InputDecoration(
+                                      labelText: i18n.t('card_content_en_hint'),
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: Space.xs),
                           TextField(
-                            controller: quizPromptEnC,
-                            decoration: InputDecoration(labelText: i18n.t('quiz_prompt_en_hint')),
+                            controller: codeSnippetC,
+                            textDirection: TextDirection.ltr,
+                            maxLines: 3,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                            decoration: InputDecoration(
+                              labelText: i18n.t('code_snippet_hint'),
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: Space.md),
+                        ],
+
+                        const Divider(height: 16),
+
+                        // المفتاح 3: التحديات والاختبارات (Quiz Arena)
+                        SwitchListTile(
+                          value: enableQuiz,
+                          onChanged: (val) => setDState(() => enableQuiz = val),
+                          title: Text(i18n.t('toggle_quiz'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('أسئلة تفاعلية فورية وترتيب منطقي', style: TextStyle(fontSize: 11)),
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                        if (enableQuiz) ...[
+                          const SizedBox(height: Space.xs),
+                          DropdownButtonFormField<QuizType>(
+                            value: selectedQuizType,
+                            decoration: InputDecoration(
+                              labelText: i18n.t('select_quiz_type'),
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: QuizType.singleChoice, child: Text('اختيار من متعدد (Single Choice)')),
+                              DropdownMenuItem(value: QuizType.reorder, child: Text('سحب وترتيب منطقي (Drag & Drop Reorder)')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setDState(() => selectedQuizType = val);
+                            },
                           ),
                           const SizedBox(height: Space.sm),
                           TextField(
-                            controller: quizExplanationEnC,
-                            decoration: InputDecoration(labelText: i18n.t('quiz_explanation_en_hint')),
+                            controller: quizPromptArC,
+                            textDirection: TextDirection.rtl,
+                            decoration: InputDecoration(
+                              labelText: i18n.t('quiz_prompt_hint'),
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: Space.sm),
+
+                          // محتوى نوع السؤال
+                          if (selectedQuizType == QuizType.reorder) ...[
+                            Text(
+                              i18n.t('reorder_instructions'),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: Space.xs),
+                            ReorderableListView(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              buildDefaultDragHandles: false,
+                              onReorder: (oldIdx, newIdx) {
+                                setDState(() {
+                                  if (newIdx > oldIdx) newIdx -= 1;
+                                  final item = reorderItems.removeAt(oldIdx);
+                                  reorderItems.insert(newIdx, item);
+                                });
+                              },
+                              children: [
+                                for (int i = 0; i < reorderItems.length; i++)
+                                  Container(
+                                    key: ValueKey('item_${reorderItems[i]}_$i'),
+                                    margin: const EdgeInsets.only(bottom: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: Space.xs),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.surface,
+                                      borderRadius: BorderRadius.circular(RadiusTokens.field),
+                                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        ReorderableDragStartListener(
+                                          index: i,
+                                          child: const Icon(Icons.drag_indicator, size: 18),
+                                        ),
+                                        const SizedBox(width: Space.xs),
+                                        Expanded(
+                                          child: Text('${i + 1}. ${reorderItems[i]}', style: const TextStyle(fontSize: 12)),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.close_rounded, size: 16),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            setDState(() {
+                                              reorderItems.removeAt(i);
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: Space.xs),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: newReorderItemC,
+                                    textDirection: TextDirection.rtl,
+                                    decoration: const InputDecoration(
+                                      hintText: 'إضافة خطوة جديدة للتسلسل...',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: Space.xs),
+                                FilledButton.tonal(
+                                  onPressed: () {
+                                    final txt = newReorderItemC.text.trim();
+                                    if (txt.isNotEmpty) {
+                                      setDState(() {
+                                        reorderItems.add(txt);
+                                        newReorderItemC.clear();
+                                      });
+                                    }
+                                  },
+                                  child: const Text('إضافة'),
+                                ),
+                              ],
+                            ),
+                          ] else ...[
+                            TextField(
+                              controller: correctOptC,
+                              textDirection: TextDirection.rtl,
+                              decoration: InputDecoration(
+                                labelText: i18n.t('correct_opt_hint'),
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: Space.xs),
+                            TextField(
+                              controller: wrongOptC,
+                              textDirection: TextDirection.rtl,
+                              decoration: InputDecoration(
+                                labelText: i18n.t('wrong_opt_hint'),
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: Space.xs),
+                            TextField(
+                              controller: whyWrongC,
+                              textDirection: TextDirection.rtl,
+                              decoration: const InputDecoration(
+                                labelText: 'سبب خطأ الإجابة البديلة (whyWrong)',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: Space.xs),
+                          TextField(
+                            controller: quizExplanationArC,
+                            textDirection: TextDirection.rtl,
+                            decoration: InputDecoration(
+                              labelText: i18n.t('quiz_explanation_hint'),
+                              border: const OutlineInputBorder(),
+                            ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text(i18n.t('cancel'))),
-            // خيار 1: حفظ كمسودة محلية
+            // حفظ كمسودة
             OutlinedButton(
               onPressed: () {
-                if (lessonTitleArC.text.isNotEmpty) {
+                if (lessonTitleArC.text.trim().isNotEmpty) {
                   _saveAndSubmit(
                     state: state,
                     courseId: courseId,
@@ -922,33 +1215,42 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
                     titleEn: lessonTitleEnC.text.trim(),
                     summaryAr: lessonSummaryArC.text.trim(),
                     summaryEn: lessonSummaryEnC.text.trim(),
+                    enableHarmash: enableHarmash,
+                    articleContent: articleContentC.text.trim(),
+                    enableCards: enableCards,
                     cardTitleAr: cardTitleArC.text.trim(),
                     cardTitleEn: cardTitleEnC.text.trim(),
                     cardContentAr: cardContentArC.text.trim(),
                     cardContentEn: cardContentEnC.text.trim(),
                     codeSnippet: codeSnippetC.text.trim(),
+                    enableQuiz: enableQuiz,
                     quizType: selectedQuizType,
                     quizPromptAr: quizPromptArC.text.trim(),
                     quizPromptEn: quizPromptEnC.text.trim(),
                     correctOpt: correctOptC.text.trim(),
                     wrongOpt: wrongOptC.text.trim(),
                     whyWrong: whyWrongC.text.trim(),
+                    reorderItems: reorderItems,
                     explanationAr: quizExplanationArC.text.trim(),
                     explanationEn: quizExplanationEnC.text.trim(),
                     submitForReview: false,
                   );
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(i18n.t('offline_draft_notice'))),
+                    SnackBar(content: Text(i18n.t('save_as_draft'))),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('يرجى إدخال عنوان الدرس على الأقل لحفظ المسودة.')),
                   );
                 }
               },
-              child: Text(i18n.t('save_draft')),
+              child: Text(i18n.t('save_as_draft')),
             ),
-            // خيار 2: إرسال للمراجعة والاعتماد السحابي
-            ElevatedButton(
+            // نشر الدرس للمراجعة أو التعديل المباشر
+            FilledButton(
               onPressed: () {
-                if (lessonTitleArC.text.isNotEmpty) {
+                if (lessonTitleArC.text.trim().isNotEmpty) {
                   _saveAndSubmit(
                     state: state,
                     courseId: courseId,
@@ -958,17 +1260,22 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
                     titleEn: lessonTitleEnC.text.trim(),
                     summaryAr: lessonSummaryArC.text.trim(),
                     summaryEn: lessonSummaryEnC.text.trim(),
+                    enableHarmash: enableHarmash,
+                    articleContent: articleContentC.text.trim(),
+                    enableCards: enableCards,
                     cardTitleAr: cardTitleArC.text.trim(),
                     cardTitleEn: cardTitleEnC.text.trim(),
                     cardContentAr: cardContentArC.text.trim(),
                     cardContentEn: cardContentEnC.text.trim(),
                     codeSnippet: codeSnippetC.text.trim(),
+                    enableQuiz: enableQuiz,
                     quizType: selectedQuizType,
                     quizPromptAr: quizPromptArC.text.trim(),
                     quizPromptEn: quizPromptEnC.text.trim(),
                     correctOpt: correctOptC.text.trim(),
                     wrongOpt: wrongOptC.text.trim(),
                     whyWrong: whyWrongC.text.trim(),
+                    reorderItems: reorderItems,
                     explanationAr: quizExplanationArC.text.trim(),
                     explanationEn: quizExplanationEnC.text.trim(),
                     submitForReview: true,
@@ -978,15 +1285,21 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
                     SnackBar(
                       content: Text(
                         isEditing
-                            ? 'تمت إعادة إرسال الدرس بنجاح مع الحفاظ على المعرّف! بانتظار الاعتماد سحابياً. 🚀'
-                            : 'تم إرسال درسك بنجاح! سيتاح لجميع الطلاب فور اعتماده من الإدارة. ⏳',
+                            ? (state.isAdmin
+                                ? 'تم حفظ تعديل الدرس مباشرة بنجاح! ⚡'
+                                : 'تم إرسال تعديل الدرس للمراجعة بنجاح! 🚀')
+                            : 'تم إرسال الدرس بنجاح! سيتاح للطلاب فور اعتماده من الإدارة. ⏳',
                       ),
                       backgroundColor: ColorTokens.success,
                     ),
                   );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('عنوان الدرس إلزامي لإتمام النشر.')),
+                  );
                 }
               },
-              child: Text(isEditing ? i18n.t('edit_and_resubmit') : i18n.t('submit_for_review')),
+              child: Text(isEditing ? (state.isAdmin ? 'حفظ التعديل المباشر' : i18n.t('edit_and_resubmit')) : i18n.t('publish_for_review')),
             ),
           ],
         ),
@@ -1003,17 +1316,22 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     required String titleEn,
     required String summaryAr,
     required String summaryEn,
+    required bool enableHarmash,
+    required String articleContent,
+    required bool enableCards,
     required String cardTitleAr,
     required String cardTitleEn,
     required String cardContentAr,
     required String cardContentEn,
     required String codeSnippet,
+    required bool enableQuiz,
     required QuizType quizType,
     required String quizPromptAr,
     required String quizPromptEn,
     required String correctOpt,
     required String wrongOpt,
     required String whyWrong,
+    required List<String> reorderItems,
     required String explanationAr,
     required String explanationEn,
     required bool submitForReview,
@@ -1023,6 +1341,7 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     final safeTitleEn = ContentSanitizer.sanitizeText(titleEn);
     final safeSummaryAr = ContentSanitizer.sanitizeText(summaryAr);
     final safeSummaryEn = ContentSanitizer.sanitizeText(summaryEn);
+    final safeArticleContent = ContentSanitizer.sanitizeText(articleContent);
     final safeCardTitleAr = ContentSanitizer.sanitizeText(cardTitleAr);
     final safeCardTitleEn = ContentSanitizer.sanitizeText(cardTitleEn);
     final safeCardContentAr = ContentSanitizer.sanitizeText(cardContentAr);
@@ -1036,12 +1355,73 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
     final safeExpAr = ContentSanitizer.sanitizeText(explanationAr);
     final safeExpEn = ContentSanitizer.sanitizeText(explanationEn);
 
-    // 2. ثبات المعرّف وعدم تغييره عند التعديل لحماية تقدم الطلاب
+    // تجهيز البطاقات والاختبارات
+    final cardsList = enableCards
+        ? [
+            LessonCard(
+              title: safeCardTitleAr.isNotEmpty ? safeCardTitleAr : 'شرح المفهوم',
+              titleEn: safeCardTitleEn.isNotEmpty ? safeCardTitleEn : null,
+              content: safeCardContentAr.isNotEmpty ? safeCardContentAr : 'شرح وتوضيح المفهوم البرمجي.',
+              contentEn: safeCardContentEn.isNotEmpty ? safeCardContentEn : null,
+              codeSnippet: safeCodeSnippet.isNotEmpty ? safeCodeSnippet : null,
+            ),
+          ]
+        : <LessonCard>[];
+
+    final quizzesList = enableQuiz && safePromptAr.isNotEmpty
+        ? [
+            QuizQuestion(
+              id: 'q_${DateTime.now().millisecondsSinceEpoch}',
+              type: quizType,
+              prompt: safePromptAr,
+              promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
+              explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
+              explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
+              items: quizType == QuizType.reorder ? List.from(reorderItems) : null,
+              correctIndices: quizType == QuizType.reorder
+                  ? List.generate(reorderItems.length, (i) => i)
+                  : [0],
+              optionsList: quizType == QuizType.reorder
+                  ? []
+                  : [
+                      QuizOption(
+                        text: safeCorrect.isNotEmpty ? safeCorrect : 'الخيار الصحيح',
+                        isCorrect: true,
+                      ),
+                      QuizOption(
+                        text: safeWrong.isNotEmpty ? safeWrong : 'الخيار البديل',
+                        isCorrect: false,
+                        whyWrong: safeWhyWrong.isNotEmpty ? safeWhyWrong : 'خيار غير دقيق برمجياً.',
+                      ),
+                    ],
+            ),
+          ]
+        : <QuizQuestion>[];
+
     final lessonId = existingLessonId ?? 'lesson_${DateTime.now().millisecondsSinceEpoch}';
     final existingMap = existingLessonId != null ? state.findLessonContext(existingLessonId) : null;
     final existingLesson = existingMap != null ? existingMap['lesson'] as Lesson : null;
 
-    // التحقق الصارم من الأمان والصلاحيات
+    // صلاحيات الإدارة المطلقة (Admin Omnipotence): المدير يعدل أي درس مباشرة فوراً
+    if (existingLesson != null && state.isAdmin) {
+      existingLesson.title = safeTitleAr;
+      existingLesson.titleEn = safeTitleEn.isNotEmpty ? safeTitleEn : null;
+      existingLesson.summary = safeSummaryAr.isNotEmpty ? safeSummaryAr : 'درس برمجي.';
+      existingLesson.summaryEn = safeSummaryEn.isNotEmpty ? safeSummaryEn : null;
+      existingLesson.displayMode = enableHarmash ? LessonDisplayMode.harmashArticle : LessonDisplayMode.sololearnInteractive;
+      existingLesson.articleContent = enableHarmash ? safeArticleContent : null;
+      existingLesson.cards = cardsList;
+      existingLesson.quizzes = quizzesList;
+      state.addLessonToModule(
+        courseId: courseId,
+        moduleId: moduleId,
+        lesson: existingLesson,
+        submitForReview: true,
+      );
+      return;
+    }
+
+    // التحقق من الصلاحيات للمستخدمين العاديين
     if (existingLesson != null && !state.isAdmin) {
       final isOwner = existingLesson.authorId == state.currentUser.id ||
           existingLesson.creatorId == state.currentUser.id;
@@ -1059,49 +1439,19 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
       }
     }
 
-    // 3. النسخ الظلية (Shadow Versioning): إذا كان الدرس منشوراً ومعتمداً بالفعل،
-    // لا نمس النسخة المنشورة للطلاب، بل نحفظ التعديل كنسخة ظل معلقة لمراجعة الإدارة
+    // النسخ الظلية (Shadow Versioning) للمستخدم العادي عند تعديل درس منشور
     if (existingLesson != null && existingLesson.isApproved && !state.isAdmin && submitForReview) {
       existingLesson.pendingUpdatePayload = {
         'title': safeTitleAr,
         'titleEn': safeTitleEn.isNotEmpty ? safeTitleEn : null,
         'summary': safeSummaryAr.isNotEmpty ? safeSummaryAr : 'درس برمجي مقدم من المجتمع.',
         'summaryEn': safeSummaryEn.isNotEmpty ? safeSummaryEn : null,
-        'cards': [
-          LessonCard(
-            title: safeCardTitleAr.isNotEmpty ? safeCardTitleAr : 'شرح المفهوم',
-            titleEn: safeCardTitleEn.isNotEmpty ? safeCardTitleEn : null,
-            content: safeCardContentAr.isNotEmpty ? safeCardContentAr : 'شرح وتوضيح المفهوم البرمجي.',
-            contentEn: safeCardContentEn.isNotEmpty ? safeCardContentEn : null,
-            codeSnippet: safeCodeSnippet.isNotEmpty ? safeCodeSnippet : null,
-          ).toJson(),
-        ],
-        'quizzes': safePromptAr.isNotEmpty
-            ? [
-                QuizQuestion(
-                  id: 'q_${DateTime.now().millisecondsSinceEpoch}',
-                  type: quizType,
-                  prompt: safePromptAr,
-                  promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
-                  explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
-                  explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
-                  optionsList: [
-                    QuizOption(
-                      text: safeCorrect.isNotEmpty ? safeCorrect : 'الخيار الصحيح',
-                      isCorrect: true,
-                    ),
-                    QuizOption(
-                      text: safeWrong.isNotEmpty ? safeWrong : 'الخيار البديل',
-                      isCorrect: false,
-                      whyWrong: safeWhyWrong.isNotEmpty ? safeWhyWrong : 'خيار غير دقيق برمجياً.',
-                    ),
-                  ],
-                ).toJson(),
-              ]
-            : <Map<String, dynamic>>[],
+        'displayMode': enableHarmash ? 'harmashArticle' : 'sololearnInteractive',
+        'articleContent': enableHarmash ? safeArticleContent : null,
+        'cards': cardsList.map((c) => c.toJson()).toList(),
+        'quizzes': quizzesList.map((q) => q.toJson()).toList(),
         'updatedAt': DateTime.now().toIso8601String(),
       };
-      // يبقى الدرس معتمداً للطلاب دون أي انقطاع مع حفظ رسالة المراجعة
       existingLesson.submittedAt = DateTime.now();
       existingLesson.reviewThread.add(
         ReviewMessage(
@@ -1127,6 +1477,7 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
       return;
     }
 
+    // درس جديد أو تعديل مسودة غير منشورة
     final newLesson = Lesson(
       id: lessonId,
       moduleId: moduleId,
@@ -1137,40 +1488,12 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen> with SingleTi
       orderIndex: 1,
       authorId: state.currentUser.id,
       authorName: state.currentUser.name,
+      displayMode: enableHarmash ? LessonDisplayMode.harmashArticle : LessonDisplayMode.sololearnInteractive,
+      articleContent: enableHarmash ? safeArticleContent : null,
       status: submitForReview ? ContentStatus.pendingReview : ContentStatus.localDraft,
       submittedAt: submitForReview ? DateTime.now() : null,
-      cards: [
-        LessonCard(
-          title: safeCardTitleAr.isNotEmpty ? safeCardTitleAr : 'شرح المفهوم',
-          titleEn: safeCardTitleEn.isNotEmpty ? safeCardTitleEn : null,
-          content: safeCardContentAr.isNotEmpty ? safeCardContentAr : 'شرح وتوضيح المفهوم البرمجي.',
-          contentEn: safeCardContentEn.isNotEmpty ? safeCardContentEn : null,
-          codeSnippet: safeCodeSnippet.isNotEmpty ? safeCodeSnippet : null,
-        ),
-      ],
-      quizzes: safePromptAr.isNotEmpty
-          ? [
-              QuizQuestion(
-                id: 'q_${DateTime.now().millisecondsSinceEpoch}',
-                type: quizType,
-                prompt: safePromptAr,
-                promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
-                explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
-                explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
-                optionsList: [
-                  QuizOption(
-                    text: safeCorrect.isNotEmpty ? safeCorrect : 'الخيار الصحيح',
-                    isCorrect: true,
-                  ),
-                  QuizOption(
-                    text: safeWrong.isNotEmpty ? safeWrong : 'الخيار البديل',
-                    isCorrect: false,
-                    whyWrong: safeWhyWrong.isNotEmpty ? safeWhyWrong : 'خيار غير دقيق برمجياً.',
-                  ),
-                ],
-              ),
-            ]
-          : <QuizQuestion>[],
+      cards: cardsList,
+      quizzes: quizzesList,
     );
 
     state.addLessonToModule(

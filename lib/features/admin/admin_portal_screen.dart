@@ -220,6 +220,21 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> with SingleTicker
                       );
                     }).toList(),
                   ),
+                  const SizedBox(height: Space.lg),
+
+                  const Text('مكتبة الأيقونات البرمجية المعتمدة لحسابات المستخدمين (Curated Avatars):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: Space.xs),
+                  Wrap(
+                    spacing: Space.xs,
+                    runSpacing: Space.xs,
+                    children: state.branding.managedIconAvatars.map((iconName) {
+                      return Chip(
+                        avatar: Icon(AppIconHelper.resolveAvatar(iconName), size: 16),
+                        label: Text(iconName, style: const TextStyle(fontSize: 11)),
+                        visualDensity: VisualDensity.compact,
+                      );
+                    }).toList(),
+                  ),
                   const SizedBox(height: Space.xl),
 
                   SizedBox(

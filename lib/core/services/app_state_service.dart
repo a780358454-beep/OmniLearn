@@ -455,6 +455,23 @@ class AppStateService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCurrentUserAvatar(String avatarIcon) {
+    _currentUser.avatarIcon = avatarIcon;
+    final idx = _users.indexWhere((u) => u.id == _currentUser.id);
+    if (idx != -1) {
+      _users[idx].avatarIcon = avatarIcon;
+    }
+    StorageRepository.saveUsers(_users);
+    notifyListeners();
+  }
+
+  void updateManagedAvatars(List<String> icons) {
+    if (!isAdmin) return;
+    _branding.managedIconAvatars = List<String>.from(icons);
+    StorageRepository.saveBranding(_branding);
+    notifyListeners();
+  }
+
   // --- حوكمة المحتوى ---
   void setContentPublishStatus({
     required String lessonId,
@@ -476,6 +493,70 @@ class AppStateService extends ChangeNotifier {
       }
     }
   }
+
+  bool adminDeleteLesson(String lessonId) {
+    if (!isAdmin) return false;
+    for (final curriculum in _curricula) {
+      for (final course in curriculum.courses) {
+        for (final module in course.modules) {
+          final lIndex = module.lessons.indexWhere((l) => l.id == lessonId);
+          if (lIndex != -1) {
+            final removed = module.lessons.removeAt(lIndex);
+            StorageRepository.saveCurricula(_curricula);
+            setNotification('تم حذف الدرس "${removed.title}" نهائياً.');
+            notifyListeners();
+            unawaited(pushCurriculaToCloud());
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  bool adminDeleteCourse(String courseId) {
+    if (!isAdmin) return false;
+    for (final curriculum in _curricula) {
+      final cIndex = curriculum.courses.indexWhere((c) => c.id == courseId);
+      if (cIndex != -1) {
+        final removed = curriculum.courses.removeAt(cIndex);
+        StorageRepository.saveCurricula(_curricula);
+        setNotification('تم حذف المقرر "${removed.title}" وكافة وحداته نهائياً.');
+        notifyListeners();
+        unawaited(pushCurriculaToCloud());
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void adminSetCourseStatus(String courseId, ContentStatus status) {
+    if (!isAdmin) return;
+    for (final curriculum in _curricula) {
+      for (final course in curriculum.courses) {
+        if (course.id == courseId) {
+          course.status = status;
+          StorageRepository.saveCurricula(_curricula);
+          notifyListeners();
+          unawaited(pushCurriculaToCloud());
+          return;
+        }
+      }
+    }
+  }
+
+  List<CourseCatalogItem> get allCatalogCourses {
+    final list = <CourseCatalogItem>[];
+    for (final domain in _curricula) {
+      for (final course in domain.courses) {
+        if (isAdmin || course.status == ContentStatus.published) {
+          list.add(CourseCatalogItem(course: course, domain: domain));
+        }
+      }
+    }
+    return list;
+  }
+
 
   // --- المسارات ---
   void createNewCurriculum({

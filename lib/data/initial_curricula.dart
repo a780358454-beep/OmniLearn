@@ -628,6 +628,259 @@ COMMIT;
               ),
             ],
           ),
+
+          // 8. الدورة المرجعية الشاملة: البرمجة كائنية التوجه وهندسة الهياكل
+          Course(
+            id: 'course_oop_master',
+            curriculumId: 'curriculum_software_dev',
+            title: 'مدخل هندسة البرمجيات والتطوير الكائني الحديث (OOP & Data Structures)',
+            code: 'OOP201',
+            description: 'دورة مرجعية مكتملة تغطي المفاهيم الأربعة للبرمجة كائنية التوجه، تصميم الهياكل، والتطبيق العملي في Dart.',
+            iconName: 'data_object',
+            status: ContentStatus.published,
+            modules: [
+              CourseModule(
+                id: 'mod_oop_core',
+                courseId: 'course_oop_master',
+                title: 'المفاهيم الأربعة الأساسية للبرمجة كائنية التوجه (OOP)',
+                description: 'التغليف والتجريد والوراثة وتعدد الأشكال مع تطبيق عملي بأمثلة واقعية.',
+                orderIndex: 1,
+                status: ContentStatus.published,
+                lessons: [
+                  Lesson(
+                    id: 'lesson_oop_encap',
+                    moduleId: 'mod_oop_core',
+                    title: 'التغليف (Encapsulation) والتجريد (Abstraction)',
+                    summary: 'حماية بيانات الكائن وإخفاء تفاصيل التنفيذ المعقدة خلف واجهات برمجية نظيفة.',
+                    orderIndex: 1,
+                    xpReward: 50,
+                    status: ContentStatus.published,
+                    creatorId: 'admin',
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''# مدخل شامل إلى التغليف (Encapsulation) والتجريد (Abstraction)
+
+تعتبر البرمجة كائنية التوجه (**Object-Oriented Programming**) النموذج المعماري الأكثر استخداماً في بناء الأنظمة البرمجية الضخمة وقابلة الصيانة.
+
+---
+
+### 1. ما هو التغليف (Encapsulation)؟
+التغليف هو تقنية ربط البيانات (Fields) بالعمليات التي تجرى عليها (Methods) داخل وحدة واحدة تسمى **الكائن (Object)**، مع منع الوصول المباشر للبيانات الداخلية من خارج الصنف إلا عبر دوال محددة (`Getters & Setters`).
+
+#### الفوائد الرئيسية للتغليف:
+* **حماية البيانات (Data Protection):** منع التعديل غير المصرح به على المتغيرات الحساسة.
+* **المرونة وتفادي الآثار الجانبية:** يمكنك تعديل الكود الداخلي دون كسر الأجزاء التي تستخدم الكائن.
+* **التحقق من صحة المدخلات (Validation):** فحص البيانات في دالة الإسناد قبل حفظها.
+
+```dart
+class BankAccount {
+  final String accountNumber;
+  double _balance; // متغير خاص (Private)
+
+  BankAccount(this.accountNumber, double initialBalance)
+      : _balance = initialBalance > 0 ? initialBalance : 0.0;
+
+  double get balance => _balance;
+
+  bool deposit(double amount) {
+    if (amount <= 0) return false;
+    _balance += amount;
+    return true;
+  }
+}
+```
+
+---
+
+### 2. ما هو التجريد (Abstraction)؟
+التجريد هو إخفاء التفاصيل التنفيذية الداخلية المعقدة وعرض الوظائف الجوهرية فقط للمستخدم. فكما تقود سيارة وتضغط على دواسة الوقود دون الحاجة لمعرفة تفاصيل دورة الاحتراق الداخلي للمحرك، يقدم لك التجريد واجهة برمجية بسيطة.
+
+| المفهوم | التعريف | الهدف الأساسي |
+| :--- | :--- | :--- |
+| **التغليف** | تغليف وحماية الحالة الداخلية | سلامة البيانات والتحكم |
+| **التجريد** | إخفاء تعقيد التنفيذ | تبسيط الاستخدام والواجهات |
+''',
+                    cards: [
+                      LessonCard(
+                        title: 'قاعدة ذهبية في التغليف',
+                        titleEn: 'Encapsulation Golden Rule',
+                        content: 'اجعل جميع خصائص الكائن خاصة (Private) بشكل افتراضي، ولا تتحكم بها من الخارج إلا من خلال دوال التحقق المحددة.',
+                        calloutType: 'tip',
+                      ),
+                      LessonCard(
+                        title: 'التجريد عبر الواجهات',
+                        titleEn: 'Abstraction via Interfaces',
+                        content: 'في Dart، كل صنف يمكن استخدامه كواجهة عبر كلمة implements لفرض تطبيق التجريد.',
+                        codeSnippet: 'abstract class PaymentGateway {\n  Future<bool> process(double amount);\n}',
+                        calloutType: 'info',
+                      ),
+                    ],
+                    quizzes: [
+                      QuizQuestion(
+                        id: 'q_oop_reorder_lifecycle',
+                        type: QuizType.reorder,
+                        prompt: 'رتب مراحل دورة حياة الكائن (Object Lifecycle) من البداية للنهاية:',
+                        explanation: 'تبدأ دورة حياة الكائن باستدعاء الباني، يليه حجز الذاكرة وتهيئة الحقول، ثم الاستخدام، وأخيراً تفريغ الذاكرة بواسطة الـ Garbage Collector.',
+                        items: [
+                          'استدعاء الباني (Constructor Call)',
+                          'حجز الذاكرة لكائن الصنف (Heap Allocation)',
+                          'تهيئة الحقول والمتغيرات (Field Initialization)',
+                          'استخدام الكائن واستدعاء دواله (Method Invocation)',
+                          'إزالة الكائن من الذاكرة (Garbage Collection)',
+                        ],
+                        correctIndices: [0, 1, 2, 3, 4],
+                      ),
+                      QuizQuestion(
+                        id: 'q_oop_encap_concept',
+                        type: QuizType.singleChoice,
+                        prompt: 'ما هي الطريقة الصحيحة لحماية المتغيرات من التعديل العشوائي المباشر في البرمجة كائنية التوجه؟',
+                        explanation: 'جعل المتغيرات خاصة (Private) وتوفير دوال وصول وتحكم (Getters & Setters) مع التحقق من صحة القيم المدخلة.',
+                        optionsList: [
+                          QuizOption(text: 'جعل الحقول خاصة وتوفير دوال تحكم (Getters & Setters) مع شروط التحقق', isCorrect: true),
+                          QuizOption(text: 'جعل كافة الحقول عامة (Public) لتسهيل القراءة والتعديل من أي مكان', isCorrect: false, whyWrong: 'هذا ينتهك مبدأ التغليف ويسمح بتعديل البيانات بحالات غير صالحة.'),
+                          QuizOption(text: 'حذف الأصناف واستخدام المتغيرات العامة (Global Variables)', isCorrect: false, whyWrong: 'المتغيرات العامة تسبب تداخلاً وفوضى برمجية تمنع الصيانة.'),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Lesson(
+                    id: 'lesson_oop_inherit',
+                    moduleId: 'mod_oop_core',
+                    title: 'الوراثة (Inheritance) وتعدد الأشكال (Polymorphism)',
+                    summary: 'إعادة استخدام الشيفرة البرمجية وبناء تسلسلات هرمية مرنة قابلة للتوسع.',
+                    orderIndex: 2,
+                    xpReward: 50,
+                    status: ContentStatus.published,
+                    creatorId: 'admin',
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''# الوراثة (Inheritance) وتعدد الأشكال (Polymorphism)
+
+تتيح الوراثة إنشاء أصناف جديدة تعتمد على أصناف موجودة مسبقاً، بينما يتيح تعدد الأشكال معاملة الكائنات المشتقة كأنها تنتمي للصنف الأب.
+
+---
+
+### 1. الوراثة (Inheritance)
+تسمح بنقل الصفات والدوال من الصنف الأساسي (**Superclass**) إلى الصنف المشتق (**Subclass**) باستخدام كلمة `extends`.
+
+```dart
+class Employee {
+  final String name;
+  final double baseSalary;
+
+  Employee(this.name, this.baseSalary);
+
+  double calculatePay() => baseSalary;
+}
+
+class Developer extends Employee {
+  final double bonus;
+
+  Developer(String name, double baseSalary, this.bonus)
+      : super(name, baseSalary);
+
+  @override
+  double calculatePay() => baseSalary + bonus;
+}
+```
+
+---
+
+### 2. تعدد الأشكال (Polymorphism)
+القدرة على تنفيذ نفس الدالة بأشكال وسلوكيات مختلفة حسب نوع الكائن الفعلي المنفذ أثناء التشغيل (Runtime).
+
+```dart
+void printPayroll(List<Employee> team) {
+  for (var emp in team) {
+    print('\${emp.name}: \${emp.calculatePay()}');
+  }
+}
+```
+''',
+                    cards: [
+                      LessonCard(
+                        title: 'مبدأ Liskov في الوراثة',
+                        titleEn: 'Liskov Substitution Principle',
+                        content: 'يجب أن يكون بإمكانك استبدال أي كائن من الصنف الأب بأي كائن من الصنف الابن دون أن يتعطل عمل النظام.',
+                        calloutType: 'tip',
+                      ),
+                    ],
+                    quizzes: [
+                      QuizQuestion(
+                        id: 'q_oop_poly_quiz',
+                        type: QuizType.singleChoice,
+                        prompt: 'ما هي الكلمة المفتاحية المستخدمة في Dart للإشارة إلى الصنف الأب واستدعاء بانيه أو دواله؟',
+                        explanation: 'كلمة super تستخدم للإشارة الصريحة إلى الصنف الأساسي (Superclass).',
+                        optionsList: [
+                          QuizOption(text: 'super', isCorrect: true),
+                          QuizOption(text: 'this', isCorrect: false, whyWrong: 'this تشير إلى كائن الصنف الحالي نفسه وليس الصنف الأب.'),
+                          QuizOption(text: 'parent', isCorrect: false, whyWrong: 'parent ليست كلمة محجوزة في لغة Dart.'),
+                          QuizOption(text: 'base', isCorrect: false, whyWrong: 'تستخدم في C# وليس Dart.'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              CourseModule(
+                id: 'mod_oop_capstone',
+                courseId: 'course_oop_master',
+                title: 'الاختبار الشامل والمشروع التطبيقي (OOP Capstone)',
+                description: 'تقييم شامل لجميع مفاهيم البرمجة كائنية التوجه وتصميم البرمجيات.',
+                orderIndex: 2,
+                status: ContentStatus.published,
+                lessons: [
+                  Lesson(
+                    id: 'lesson_oop_exam',
+                    moduleId: 'mod_oop_capstone',
+                    title: 'الاختبار المرجعي الشامل للبرمجة كائنية التوجه',
+                    summary: 'اختبار ختامي لاعتماد إتقان مفاهيم OOP.',
+                    orderIndex: 1,
+                    xpReward: 100,
+                    status: ContentStatus.published,
+                    creatorId: 'admin',
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''# الاختبار الشامل لمسار البرمجة كائنية التوجه
+
+تهانينا لوصولك للمحطة الختامية في هذا المقرر المرجعي! هذا الاختبار يقيس فهمك المتعمق لمبادئ OOP الأربعة وكيفية توظيفها في التصميم المعماري النظيف.
+''',
+                    cards: [
+                      LessonCard(
+                        title: 'تعليمات الاختبار',
+                        content: 'أجب عن جميع الأسئلة بدقة للانتقال إلى مستوى الاحتراف وحصد 100 نقطة خبرة XP.',
+                        calloutType: 'info',
+                      ),
+                    ],
+                    quizzes: [
+                      QuizQuestion(
+                        id: 'q_exam_oop_1',
+                        type: QuizType.singleChoice,
+                        prompt: 'أي من المبادئ التالية يهدف إلى تقليل التكرار وإعادة استخدام الشيفرة البرمجية عبر العلاقات الهرمية؟',
+                        explanation: 'الوراثة (Inheritance) هي الآلية المباشرة لإعادة استخدام الحقول والدوال المشتركة.',
+                        optionsList: [
+                          QuizOption(text: 'الوراثة (Inheritance)', isCorrect: true),
+                          QuizOption(text: 'التجريد (Abstraction)', isCorrect: false),
+                          QuizOption(text: 'التغليف (Encapsulation)', isCorrect: false),
+                        ],
+                      ),
+                      QuizQuestion(
+                        id: 'q_exam_oop_2',
+                        type: QuizType.reorder,
+                        prompt: 'رتب طبقات مبادئ SOLID من الحرف الأول للأخير:',
+                        explanation: 'ترتيب مبادئ SOLID: SRP, OCP, LSP, ISP, DIP.',
+                        items: [
+                          'S: المسؤولية الفردية (Single Responsibility)',
+                          'O: الفتح والإغلاق (Open/Closed)',
+                          'L: استبدال ليسكوف (Liskov Substitution)',
+                          'I: فصل الواجهات (Interface Segregation)',
+                          'D: قلب الاعتمادية (Dependency Inversion)',
+                        ],
+                        correctIndices: [0, 1, 2, 3, 4],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
 
@@ -869,6 +1122,174 @@ bool hasDuplicatePairs(List<int> numbers) {
                           QuizOption(text: 'O(N)', isCorrect: false, whyWrong: 'O(N) ينطبق على البحث الخطي غير المفهرس، وليس الوصول المباشر.'),
                           QuizOption(text: 'O(log N)', isCorrect: false, whyWrong: 'O(log N) تعقيد البحث الثنائي في مصفوفة مرتبة.'),
                           QuizOption(text: 'O(N^2)', isCorrect: false, whyWrong: 'تعقيد تربيعي مفرط ينتج عن التكرارات المتداخلة.'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // المسار الرابع: تطوير تطبيقات الموبايل (Mobile Engineering)
+      CurriculumDomain(
+        id: 'curriculum_mobile',
+        name: 'مسار تطبيقات الموبايل الحديثة (Mobile Engineering)',
+        code: 'MOB-TRACK',
+        description: 'تطوير تطبيقات الهواتف الذكية عبر Flutter وهندسة واجهات المستخدم وإدارة الحالة.',
+        category: DomainCategory.mobileDevelopment,
+        iconName: 'phone_android',
+        courses: [
+          Course(
+            id: 'course_flutter_eng',
+            curriculumId: 'curriculum_mobile',
+            title: 'هندسة تطبيقات Flutter وإدارة الحالة (State Management)',
+            code: 'MOB201',
+            description: 'بناء معمارية قوية لتطبيقات الموبايل وفصل واجهة المستخدم عن منطق الأعمال.',
+            iconName: 'smartphone',
+            status: ContentStatus.published,
+            modules: [
+              CourseModule(
+                id: 'mod_flutter_state',
+                courseId: 'course_flutter_eng',
+                title: 'إدارة الحالة وهيكلة تطبيقات Flutter',
+                description: 'مقارنة أنماط إدارة الحالة وكيفية تدفق البيانات أحادي الاتجاه.',
+                orderIndex: 1,
+                status: ContentStatus.published,
+                lessons: [
+                  Lesson(
+                    id: 'lesson_flutter_state_intro',
+                    moduleId: 'mod_flutter_state',
+                    title: 'إدارة الحالة وفصل منطق العمل (State Management)',
+                    summary: 'كيف تدير حالة التطبيق وتفصل UI عن Business Logic باحترافية.',
+                    orderIndex: 1,
+                    xpReward: 60,
+                    status: ContentStatus.published,
+                    creatorId: 'admin',
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''# الدليل المرجعي لإدارة الحالة في Flutter
+
+الحالة (**State**) هي أي بيانات يحتاجها تطبيقك في أي لحظة زمنية لإعادة رسم واجهة المستخدم وتحديثها بناءً على تفاعل المستخدم أو استجابة الخادم.
+
+---
+
+### 1. الحالة المؤقتة (Ephemeral State) مقابل حالة التطبيق (App State)
+* **Ephemeral State:** حالة تنتمي لودجت واحدة فقط، مثل رقم التبويب المحدد أو حالة زر الإظهار والإخفاء (تدار بـ `setState`).
+* **App State:** حالة مشتركة بين شاشات متعددة، مثل بيانات المستخدم المسجل، سلة المشتريات، وإعدادات المظهر المظلم.
+
+```dart
+// تدفق بيانات أحادي الاتجاه (Unidirectional Data Flow)
+// State -> UI -> User Action -> Event Handler -> State Update
+```
+''',
+                    cards: [
+                      LessonCard(
+                        title: 'قاعدة فصل الاهتمامات',
+                        titleEn: 'Separation of Concerns',
+                        content: 'لا تضع استدعاءات الشبكة وقواعد البيانات داخل دالة build للـ Widget نهائياً.',
+                        calloutType: 'warning',
+                      ),
+                    ],
+                    quizzes: [
+                      QuizQuestion(
+                        id: 'q_mob_state_1',
+                        type: QuizType.singleChoice,
+                        prompt: 'متى يجب استخدام App State بدلاً من Ephemeral State؟',
+                        explanation: 'عندما تكون البيانات مشتركة بين شاشات وودجات متعددة في شجرة التطبيق.',
+                        optionsList: [
+                          QuizOption(text: 'عندما تحتاج عدة شاشات للوصول للبيانات وتعديلها', isCorrect: true),
+                          QuizOption(text: 'لحفظ مؤشر تمرير صفحة واحدة فقط', isCorrect: false),
+                          QuizOption(text: 'لتلوين زر تفاعلي مؤقت في ودجت مستقلة', isCorrect: false),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // المسار الخامس: أمن المعلومات والبرمجة الآمنة (Cyber Security & Defensive Coding)
+      CurriculumDomain(
+        id: 'curriculum_security',
+        name: 'مسار أمن المعلومات والبرمجة الآمنة (Cyber Security)',
+        code: 'SEC-TRACK',
+        description: 'أسس الأمن السيبراني، ثالوث الأمان، والبرمجة الدفاعية لحماية البرمجيات.',
+        category: DomainCategory.securityEthics,
+        iconName: 'security',
+        courses: [
+          Course(
+            id: 'course_sec_foundations',
+            curriculumId: 'curriculum_security',
+            title: 'أسس الأمن السيبراني والبرمجة الدفاعية (Defensive Coding)',
+            code: 'SEC101',
+            description: 'فهم ثالوث الأمان CIA ومكافحة ثغرات الحقن وتأمين الاتصالات.',
+            iconName: 'verified_user',
+            status: ContentStatus.published,
+            modules: [
+              CourseModule(
+                id: 'mod_sec_defensive',
+                courseId: 'course_sec_foundations',
+                title: 'مبادئ ثالوث الأمان ومكافحة الثغرات البرمجية',
+                description: 'السرية والنزاهة والتوافر (Confidentiality, Integrity, Availability).',
+                orderIndex: 1,
+                status: ContentStatus.published,
+                lessons: [
+                  Lesson(
+                    id: 'lesson_cia_triad',
+                    moduleId: 'mod_sec_defensive',
+                    title: 'ثالوث الأمان (CIA Triad) ومبادئ التحصين البرمجي',
+                    summary: 'الأعمدة الثلاثة لحماية أي نظام رقمي وتفادي المخاطر السيبرانية.',
+                    orderIndex: 1,
+                    xpReward: 60,
+                    status: ContentStatus.published,
+                    creatorId: 'admin',
+                    displayMode: LessonDisplayMode.harmashArticle,
+                    articleContent: '''# مدخل شامل إلى ثالوث أمن المعلومات (CIA Triad)
+
+يشكل ثالوث **CIA** النموذج المرجعي الأساسي لتوجيه سياسات أمن المعلومات في المؤسسات والبرمجيات.
+
+---
+
+### أركان ثالوث الأمان:
+1. **السرية (Confidentiality):** ضمان عدم وصول غير المصرح لهم إلى البيانات (التشفير وإدارة الصلاحيات).
+2. **النزاهة (Integrity):** ضمان دقة وصحة البيانات وعدم التلاعب بها أثناء التخزين أو النقل (Hashes & Digital Signatures).
+3. **التوافر (Availability):** ضمان بقاء الخدمات والبيانات متاحة للمستخدمين المصرح لهم عند الحاجة (Redundancy & DDoS Protection).
+''',
+                    cards: [
+                      LessonCard(
+                        title: 'مبدأ الصلاحيات الأقل (Least Privilege)',
+                        titleEn: 'Principle of Least Privilege',
+                        content: 'امنح كل مستخدم ومكون برمجي الحد الأدنى فقط من الصلاحيات اللازمة لأداء وظيفته.',
+                        calloutType: 'tip',
+                      ),
+                    ],
+                    quizzes: [
+                      QuizQuestion(
+                        id: 'q_sec_cia_1',
+                        type: QuizType.reorder,
+                        prompt: 'رتب عناصر ثالوث الأمان CIA حسب الحروف الإنجليزية:',
+                        explanation: 'ترتيب CIA: السرية (Confidentiality)، النزاهة (Integrity)، التوافر (Availability).',
+                        items: [
+                          'السرية (Confidentiality)',
+                          'النزاهة (Integrity)',
+                          'التوافر (Availability)',
+                        ],
+                        correctIndices: [0, 1, 2],
+                      ),
+                      QuizQuestion(
+                        id: 'q_sec_cia_2',
+                        type: QuizType.singleChoice,
+                        prompt: 'أي عنصر من ثالوث الأمان يتأثر بشكل مباشر بهجمات حجب الخدمة (DDoS)؟',
+                        explanation: 'هجمات DDoS تغرق الخوادم بالطلبات لتعطيل الوصول مما يضرب ركن التوافر (Availability).',
+                        optionsList: [
+                          QuizOption(text: 'التوافر (Availability)', isCorrect: true),
+                          QuizOption(text: 'السرية (Confidentiality)', isCorrect: false),
+                          QuizOption(text: 'النزاهة (Integrity)', isCorrect: false),
                         ],
                       ),
                     ],

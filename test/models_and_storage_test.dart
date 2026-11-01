@@ -247,6 +247,86 @@ void main() {
       final branding = AppBrandingConfig.fromJson({});
       expect(branding.appName, contains('مَسْرَاء'));
       expect(branding.appTagline, contains('البرمجيات'));
+      expect(branding.managedIconAvatars.isNotEmpty, isTrue);
+      expect(branding.managedIconAvatars.contains('terminal'), isTrue);
+    });
+
+    test('DomainCategoryExt labels and CourseCatalogItem structure', () {
+      expect(DomainCategory.webDevelopment.labelAr, contains('الواجهة الأمامية'));
+      expect(DomainCategory.softwareEngineering.labelAr, contains('الواجهة الخلفية'));
+      expect(DomainCategory.mobileDevelopment.labelAr, contains('الموبايل'));
+      expect(DomainCategory.algorithms.labelAr, contains('الخوارزميات'));
+      expect(DomainCategory.securityEthics.labelAr, contains('الأخلاقيات'));
+
+      final course = Course(
+        id: 'c1',
+        curriculumId: 'cur1',
+        title: 'تجربة',
+        code: 'EXP101',
+        description: 'وصف',
+        iconName: 'code',
+      );
+      final domain = CurriculumDomain(
+        id: 'cur1',
+        name: 'مسار',
+        code: 'TRK',
+        description: 'وصف',
+        category: DomainCategory.webDevelopment,
+        iconName: 'web',
+      );
+      final item = CourseCatalogItem(course: course, domain: domain);
+      expect(item.course.id, 'c1');
+      expect(item.domain.category, DomainCategory.webDevelopment);
+    });
+
+    test('AppUser avatarIcon serialization and fallback', () {
+      final user = AppUser(
+        id: 'u_avatar_1',
+        name: 'مطور',
+        email: 'dev@masra.app',
+        role: UserRole.student,
+        avatarIcon: 'rocket',
+      );
+      expect(user.avatarIcon, 'rocket');
+
+      final json = user.toJson();
+      expect(json['avatarIcon'], 'rocket');
+
+      final revived = AppUser.fromJson(json);
+      expect(revived.avatarIcon, 'rocket');
+
+      final defaultRevived = AppUser.fromJson({'id': 'u2', 'name': 'مستخدم', 'email': 'x@y.com', 'role': 'student'});
+      expect(defaultRevived.avatarIcon, 'person');
+    });
+
+    test('Master Reference Course (OOP201) and all 5 domains verification', () {
+      final curricula = InitialCurriculaData.getCurricula();
+      expect(curricula.length, 5);
+
+      // التأكد من توفر الدورة المرجعية OOP201
+      final csDomain = curricula.first;
+      final oopCourse = csDomain.courses.firstWhere((c) => c.code == 'OOP201');
+      expect(oopCourse.title, contains('التطوير الكائني الحديث'));
+      expect(oopCourse.modules.isNotEmpty, isTrue);
+
+      final oopLesson = oopCourse.modules.first.lessons.first;
+      expect(oopLesson.displayMode, LessonDisplayMode.harmashArticle);
+      expect(oopLesson.articleContent, contains('Encapsulation'));
+
+      // التحقق من احتواء الدورة المرجعية على سؤال ترتيب بسحب وإفلات
+      final reorderQuiz = oopLesson.quizzes.firstWhere((q) => q.type == QuizType.reorder);
+      expect(reorderQuiz.items, isNotNull);
+      expect(reorderQuiz.items!.length, 5);
+      expect(reorderQuiz.correctIndices, [0, 1, 2, 3, 4]);
+
+      // التحقق من مسار الموبايل ومسار الأمن السيبراني
+      final mobileDomain = curricula[3];
+      expect(mobileDomain.category, DomainCategory.mobileDevelopment);
+      expect(mobileDomain.courses.first.title, contains('Flutter'));
+
+      final secDomain = curricula[4];
+      expect(secDomain.category, DomainCategory.securityEthics);
+      expect(secDomain.courses.first.title, contains('الأمن السيبراني'));
     });
   });
 }

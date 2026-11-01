@@ -106,3 +106,44 @@ class AppTypography {
     letterSpacing: 0,
   );
 }
+
+class AppIconHelper {
+  static IconData resolveAvatar(String iconName) {
+    switch (iconName.toLowerCase()) {
+      case 'terminal':
+        return Icons.terminal_rounded;
+      case 'code':
+        return Icons.code_rounded;
+      case 'school':
+        return Icons.school_rounded;
+      case 'data_object':
+        return Icons.data_object_rounded;
+      case 'devices':
+        return Icons.devices_rounded;
+      case 'rocket':
+        return Icons.rocket_launch_rounded;
+      case 'menu_book':
+        return Icons.menu_book_rounded;
+      case 'bolt':
+        return Icons.bolt_rounded;
+      case 'hub':
+        return Icons.hub_rounded;
+      case 'security':
+        return Icons.security_rounded;
+      case 'smart_toy':
+        return Icons.smart_toy_rounded;
+      case 'psychology':
+        return Icons.psychology_rounded;
+      case 'developer_mode':
+        return Icons.developer_mode_rounded;
+      case 'coffee':
+        return Icons.coffee_rounded;
+      case 'bug_report':
+        return Icons.bug_report_rounded;
+      case 'person':
+      default:
+        return Icons.person_rounded;
+    }
+  }
+}
+

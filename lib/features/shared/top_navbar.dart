@@ -192,6 +192,8 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                       builder: (_) => const CreatorStudioScreen(),
                     ),
                   );
+                } else if (value == 'avatar') {
+                  _showAvatarPickerDialog(context, state, i18n);
                 } else if (value == 'password') {
                   Navigator.push(
                     context,
@@ -261,6 +263,16 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
                 PopupMenuItem<String>(
+                  value: 'avatar',
+                  child: Row(
+                    children: [
+                      Icon(Icons.face_retouching_natural_rounded, size: 18, color: cs.primary),
+                      const SizedBox(width: Space.sm),
+                      Text(i18n.t('change_avatar')),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: 'password',
                   child: Row(
                     children: [
@@ -295,12 +307,10 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: cs.primary,
-                    child: Text(
-                      _initials(user.name),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Icon(
+                      AppIconHelper.resolveAvatar(user.avatarIcon),
+                      color: Colors.white,
+                      size: 20,
                     ),
                   ),
                   Positioned(
@@ -328,6 +338,87 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAvatarPickerDialog(BuildContext context, AppStateService state, I18nService i18n) {
+    final cs = Theme.of(context).colorScheme;
+    final currentAvatar = state.currentUser.avatarIcon;
+    final avatars = state.branding.managedIconAvatars;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(RadiusTokens.dialog),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.face_retouching_natural_rounded, color: cs.primary),
+            const SizedBox(width: Space.sm),
+            Text(i18n.t('select_avatar_title'), style: AppTypography.title),
+          ],
+        ),
+        content: SizedBox(
+          width: 360,
+          child: Wrap(
+            spacing: Space.md,
+            runSpacing: Space.md,
+            alignment: WrapAlignment.center,
+            children: avatars.map((iconName) {
+              final isSelected = iconName == currentAvatar;
+              return InkWell(
+                onTap: () {
+                  state.updateCurrentUserAvatar(iconName);
+                  Navigator.pop(ctx);
+                },
+                borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: isSelected ? cs.primary.withOpacity(0.15) : cs.surfaceContainerHigh,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? cs.primary : cs.outlineVariant,
+                      width: isSelected ? 2.5 : 1.0,
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        AppIconHelper.resolveAvatar(iconName),
+                        color: isSelected ? cs.primary : cs.onSurface,
+                        size: 26,
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          bottom: 2,
+                          right: 2,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cs.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(Icons.check, size: 10, color: Colors.white),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(i18n.t('close')),
+          ),
+        ],
       ),
     );
   }

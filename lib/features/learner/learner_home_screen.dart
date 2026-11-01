@@ -19,6 +19,15 @@ class LearnerHomeScreen extends StatefulWidget {
 
 class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
   String? _selectedCourseId;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  DomainCategory? _selectedCategory;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   IconData _resolveCourseIcon(String iconName) {
     switch (iconName.toLowerCase()) {
@@ -135,6 +144,26 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
     final activeProgress = totalActiveLessons > 0 ? (doneActiveLessons / totalActiveLessons) : 0.0;
     final nextLesson = activeCourse != null ? _findNextLesson(activeCourse, state) : null;
     final firstLesson = activeCourse != null ? _findFirstLesson(activeCourse) : null;
+
+    // استخراج المقررات المصفاة عبر محرك البحث والأقسام
+    final allCatalog = state.allCatalogCourses;
+    final filteredCatalog = allCatalog.where((item) {
+      if (_selectedCategory != null && item.domain.category != _selectedCategory) {
+        return false;
+      }
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery;
+        final matchTitle = item.course.title.toLowerCase().contains(q);
+        final matchCode = item.course.code.toLowerCase().contains(q);
+        final matchDesc = item.course.description.toLowerCase().contains(q);
+        final matchDomain = item.domain.name.toLowerCase().contains(q);
+        final matchLessons = item.course.modules.any(
+          (m) => m.lessons.any((l) => l.title.toLowerCase().contains(q)),
+        );
+        return matchTitle || matchCode || matchDesc || matchDomain || matchLessons;
+      }
+      return true;
+    }).toList();
 
     // استخراج باقي المواد للتمرير الجانبي
     final otherCourses = cur.courses.where((c) => c.id != activeCourse?.id).toList();
@@ -374,7 +403,217 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
               ),
             ),
 
-            // 3. المادة التي ستدرسها وتقدمك فيها (Hero Active Course Card)
+            // 3. محرك البحث الفوري وشريط تصفية الأقسام (Instant Search & Category Filter)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, Space.xs),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val.trim().toLowerCase();
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: i18n.t('search_courses_placeholder'),
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: cs.surfaceContainerHigh,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(RadiusTokens.card),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
+                ),
+              ),
+            ),
+
+            // رقاقات تصفية الأقسام البرمجية (Category Filter Chips)
+            SizedBox(
+              height: 48,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+                children: [
+                  ChoiceChip(
+                    label: Text(i18n.t('all_categories')),
+                    selected: _selectedCategory == null,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedCategory = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: Space.xs),
+                  ...[
+                    DomainCategory.webDevelopment,
+                    DomainCategory.softwareEngineering,
+                    DomainCategory.mobileDevelopment,
+                    DomainCategory.algorithms,
+                    DomainCategory.securityEthics,
+                  ].map((cat) {
+                    final isSel = _selectedCategory == cat;
+                    return Padding(
+                      padding: const EdgeInsets.only(left: Space.xs),
+                      child: ChoiceChip(
+                        label: Text(cat.labelAr),
+                        selected: isSel,
+                        onSelected: (_) {
+                          setState(() {
+                            _selectedCategory = isSel ? null : cat;
+                          });
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: Space.xs),
+
+            // إذا كان البحث نشطاً أو تم اختيار قسم معين: نعرض نتائج البحث كشبكة/قائمة مباشرة
+            if (_searchQuery.isNotEmpty || _selectedCategory != null) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, Space.xs),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'نتائج البحث والتصفية (${filteredCatalog.length})',
+                      style: AppTypography.title.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                          _selectedCategory = null;
+                        });
+                      },
+                      child: const Text('إعادة ضبط التصفية'),
+                    ),
+                  ],
+                ),
+              ),
+              if (filteredCatalog.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(Space.xl),
+                  child: Center(
+                    child: EmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: i18n.t('no_search_results'),
+                      reason: 'جرب استخدام كلمات بحث بديلة أو اختيار قسم آخر.',
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+                  itemCount: filteredCatalog.length,
+                  itemBuilder: (ctx, idx) {
+                    final item = filteredCatalog[idx];
+                    final isCur = item.course.id == activeCourse?.id;
+                    final totalL = _totalPublishedLessons(item.course);
+                    final doneL = _completedLessons(item.course, state);
+                    final progress = totalL > 0 ? (doneL / totalL) : 0.0;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: Space.md),
+                      color: isCur ? cs.primary.withOpacity(0.08) : cs.surfaceContainerLow,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(RadiusTokens.card),
+                        side: BorderSide(color: isCur ? cs.primary : cs.outlineVariant),
+                      ),
+                      child: ListTile(
+                        onTap: () {
+                          state.setActiveCurriculum(item.domain.id);
+                          setState(() {
+                            _selectedCourseId = item.course.id;
+                          });
+                        },
+                        leading: CircleAvatar(
+                          backgroundColor: cs.primary.withOpacity(0.12),
+                          child: Icon(_resolveCourseIcon(item.course.iconName), color: cs.primary),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.course.title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isCur ? cs.primary : cs.onSurface,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: Space.xs + 2, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: cs.primary.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                              ),
+                              child: Text(
+                                item.domain.category.labelAr.split('(').first.trim(),
+                                style: TextStyle(fontSize: 10, color: cs.primary, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text(
+                              item.course.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      minHeight: 4,
+                                      backgroundColor: cs.surfaceContainerHighest,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        progress >= 1.0 ? ColorTokens.success : cs.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: Space.sm),
+                                Text(
+                                  '${(progress * 100).toInt()}%',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              const SizedBox(height: Space.md),
+            ],
+
+            // 4. المادة التي ستدرسها وتقدمك فيها (Hero Active Course Card)
             if (activeCourse != null) ...[
               Padding(
                 padding: const EdgeInsets.all(Space.lg),
@@ -420,19 +659,43 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                               ],
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
-                            decoration: BoxDecoration(
-                              color: cs.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(RadiusTokens.pill),
-                            ),
-                            child: Text(
-                              activeCourse.code,
-                              style: AppTypography.caption.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: cs.onSurfaceVariant,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (state.isAdmin) ...[
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: ColorTokens.error),
+                                  tooltip: i18n.t('delete_course'),
+                                  onPressed: () {
+                                    _confirmDelete(
+                                      context: context,
+                                      title: '${i18n.t('delete_course')}: ${activeCourse.title}',
+                                      onConfirm: () {
+                                        state.adminDeleteCourse(activeCourse.id);
+                                        setState(() {
+                                          _selectedCourseId = null;
+                                        });
+                                      },
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: Space.xs),
+                              ],
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
+                                decoration: BoxDecoration(
+                                  color: cs.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(RadiusTokens.pill),
+                                ),
+                                child: Text(
+                                  activeCourse.code,
+                                  style: AppTypography.caption.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
@@ -1052,6 +1315,25 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        if (state.isAdmin) ...[
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: ColorTokens.error),
+                            tooltip: i18n.t('delete_lesson'),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              _confirmDelete(
+                                context: context,
+                                title: '${i18n.t('delete_lesson')}: ${lesson.title}',
+                                onConfirm: () {
+                                  state.adminDeleteLesson(lesson.id);
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(width: Space.sm),
+                        ],
                         if (isLocked)
                           Row(
                             children: [
@@ -1356,6 +1638,31 @@ class _LearnerHomeScreenState extends State<LearnerHomeScreen> {
         ),
         actions: [
           ElevatedButton(onPressed: () => Navigator.pop(ctx), child: Text(I18nService.instance.t('close'))),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete({
+    required BuildContext context,
+    required String title,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Text(I18nService.instance.t('confirm_delete_desc')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(I18nService.instance.t('cancel'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: ColorTokens.error),
+            onPressed: () {
+              Navigator.pop(ctx);
+              onConfirm();
+            },
+            child: const Text('حذف نهائي'),
+          ),
         ],
       ),
     );

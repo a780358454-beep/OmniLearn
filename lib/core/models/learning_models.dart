@@ -42,6 +42,41 @@ enum DomainCategory {
   webDevelopment,
   mobileDevelopment,
   algorithms,
+  securityEthics,
+}
+
+extension DomainCategoryExt on DomainCategory {
+  String get labelAr {
+    switch (this) {
+      case DomainCategory.webDevelopment:
+        return 'الواجهة الأمامية والويب (Front-End)';
+      case DomainCategory.softwareEngineering:
+        return 'الواجهة الخلفية والأنظمة (Back-End)';
+      case DomainCategory.mobileDevelopment:
+        return 'تطبيقات الموبايل (Mobile Apps)';
+      case DomainCategory.algorithms:
+        return 'الخوارزميات وهياكل البيانات (Algorithms)';
+      case DomainCategory.securityEthics:
+      case DomainCategory.computing:
+        return 'أسس الحوسبة والأخلاقيات (Core CS & Security)';
+    }
+  }
+
+  String get labelEn {
+    switch (this) {
+      case DomainCategory.webDevelopment:
+        return 'Front-End & Web';
+      case DomainCategory.softwareEngineering:
+        return 'Back-End & Systems';
+      case DomainCategory.mobileDevelopment:
+        return 'Mobile Apps';
+      case DomainCategory.algorithms:
+        return 'Algorithms & Data Structures';
+      case DomainCategory.securityEthics:
+      case DomainCategory.computing:
+        return 'Core CS & Security';
+    }
+  }
 }
 
 /// مراحل محاولات التعلم (مفيدة للدراسات البحثية والتقييم القبلي والبعدي)
@@ -178,6 +213,7 @@ class AppBrandingConfig {
   String activeCurriculumId;
   bool isDarkMode;
   DateTime lastActiveDate;
+  List<String> managedIconAvatars;
 
   AppBrandingConfig({
     required this.appName,
@@ -188,7 +224,26 @@ class AppBrandingConfig {
     this.activeCurriculumId = "curriculum_software_dev",
     this.isDarkMode = true,
     DateTime? lastActiveDate,
-  }) : lastActiveDate = lastActiveDate ?? DateTime.now();
+    List<String>? managedIconAvatars,
+  })  : lastActiveDate = lastActiveDate ?? DateTime.now(),
+        managedIconAvatars = managedIconAvatars ?? [
+          'terminal',
+          'code',
+          'school',
+          'data_object',
+          'devices',
+          'rocket',
+          'menu_book',
+          'bolt',
+          'hub',
+          'security',
+          'smart_toy',
+          'psychology',
+          'person',
+          'developer_mode',
+          'coffee',
+          'bug_report',
+        ];
 
   Map<String, dynamic> toJson() => {
     'appName': appName,
@@ -199,6 +254,7 @@ class AppBrandingConfig {
     'activeCurriculumId': activeCurriculumId,
     'isDarkMode': isDarkMode,
     'lastActiveDate': lastActiveDate.toIso8601String(),
+    'managedIconAvatars': managedIconAvatars,
   };
 
   factory AppBrandingConfig.fromJson(Map<String, dynamic> json) => AppBrandingConfig(
@@ -210,6 +266,7 @@ class AppBrandingConfig {
     activeCurriculumId: json['activeCurriculumId'] ?? 'curriculum_software_dev',
     isDarkMode: json['isDarkMode'] ?? true,
     lastActiveDate: DateTime.tryParse(json['lastActiveDate'] ?? '') ?? DateTime.now(),
+    managedIconAvatars: (json['managedIconAvatars'] as List?)?.map((e) => e.toString()).toList(),
   );
 }
 
@@ -233,6 +290,7 @@ class AppUser {
   DateTime? lastLoginAt;
   List<String> completedLessonIds;
   List<String> assignedCourseIds;
+  String avatarIcon;
 
   AppUser({
     required this.id,
@@ -253,6 +311,7 @@ class AppUser {
     this.lastLoginAt,
     List<String>? completedLessonIds,
     List<String>? assignedCourseIds,
+    this.avatarIcon = 'person',
   })  : createdAt = createdAt ?? DateTime.now(),
         lastActiveDate = lastActiveDate ?? DateTime.now(),
         completedLessonIds = completedLessonIds ?? [],
@@ -305,6 +364,7 @@ class AppUser {
     'lastLoginAt': lastLoginAt?.toIso8601String(),
     'completedLessonIds': completedLessonIds,
     'assignedCourseIds': assignedCourseIds,
+    'avatarIcon': avatarIcon,
   };
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -329,6 +389,7 @@ class AppUser {
     lastLoginAt: json['lastLoginAt'] == null ? null : DateTime.tryParse(json['lastLoginAt']),
     completedLessonIds: List<String>.from(json['completedLessonIds'] ?? []),
     assignedCourseIds: List<String>.from(json['assignedCourseIds'] ?? []),
+    avatarIcon: json['avatarIcon'] ?? 'person',
   );
 }
 
@@ -864,3 +925,15 @@ class CurriculumDomain {
     );
   }
 }
+
+/// عنصر فهرس المقررات الشامل لربط المقرر بمساره وفئته
+class CourseCatalogItem {
+  final Course course;
+  final CurriculumDomain domain;
+
+  const CourseCatalogItem({
+    required this.course,
+    required this.domain,
+  });
+}
+
