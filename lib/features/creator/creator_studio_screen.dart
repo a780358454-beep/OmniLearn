@@ -1369,7 +1369,7 @@ void main() {
         : <LessonCard>[];
 
     final quizzesList = enableQuiz && safePromptAr.isNotEmpty
-        ? [
+        ? <QuizQuestion>[
             QuizQuestion(
               id: 'q_${DateTime.now().millisecondsSinceEpoch}',
               type: quizType,
@@ -1377,7 +1377,7 @@ void main() {
               promptEn: safePromptEn.isNotEmpty ? safePromptEn : null,
               explanation: safeExpAr.isNotEmpty ? safeExpAr : 'تعليل الحل الصحيح.',
               explanationEn: safeExpEn.isNotEmpty ? safeExpEn : null,
-              items: quizType == QuizType.reorder ? List.from(reorderItems) : null,
+              orderItems: quizType == QuizType.reorder ? List.from(reorderItems) : null,
               correctIndices: quizType == QuizType.reorder
                   ? List.generate(reorderItems.length, (i) => i)
                   : [0],
@@ -1408,7 +1408,7 @@ void main() {
       existingLesson.titleEn = safeTitleEn.isNotEmpty ? safeTitleEn : null;
       existingLesson.summary = safeSummaryAr.isNotEmpty ? safeSummaryAr : 'درس برمجي.';
       existingLesson.summaryEn = safeSummaryEn.isNotEmpty ? safeSummaryEn : null;
-      existingLesson.displayMode = enableHarmash ? LessonDisplayMode.harmashArticle : LessonDisplayMode.sololearnInteractive;
+      existingLesson.displayMode = enableHarmash ? LessonDisplayMode.harmashArticle : LessonDisplayMode.cards;
       existingLesson.articleContent = enableHarmash ? safeArticleContent : null;
       existingLesson.cards = cardsList;
       existingLesson.quizzes = quizzesList;
@@ -1446,7 +1446,7 @@ void main() {
         'titleEn': safeTitleEn.isNotEmpty ? safeTitleEn : null,
         'summary': safeSummaryAr.isNotEmpty ? safeSummaryAr : 'درس برمجي مقدم من المجتمع.',
         'summaryEn': safeSummaryEn.isNotEmpty ? safeSummaryEn : null,
-        'displayMode': enableHarmash ? 'harmashArticle' : 'sololearnInteractive',
+        'displayMode': enableHarmash ? 'harmashArticle' : 'cards',
         'articleContent': enableHarmash ? safeArticleContent : null,
         'cards': cardsList.map((c) => c.toJson()).toList(),
         'quizzes': quizzesList.map((q) => q.toJson()).toList(),
@@ -1488,7 +1488,7 @@ void main() {
       orderIndex: 1,
       authorId: state.currentUser.id,
       authorName: state.currentUser.name,
-      displayMode: enableHarmash ? LessonDisplayMode.harmashArticle : LessonDisplayMode.sololearnInteractive,
+      displayMode: enableHarmash ? LessonDisplayMode.harmashArticle : LessonDisplayMode.cards,
       articleContent: enableHarmash ? safeArticleContent : null,
       status: submitForReview ? ContentStatus.pendingReview : ContentStatus.localDraft,
       submittedAt: submitForReview ? DateTime.now() : null,

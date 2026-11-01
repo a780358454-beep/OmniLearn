@@ -491,6 +491,7 @@ class QuizQuestion {
     List<String>? options,
     List<int>? correctIndices,
     List<String>? orderItems,
+    List<String>? items,
     this.fillSentence = '',
     List<String>? fillAcceptedAnswers,
     Map<String, String>? pairs,
@@ -499,7 +500,7 @@ class QuizQuestion {
     this.source,
     this.reviewedBy,
   }) : optionsList = optionsList ?? _buildOptions(options, correctIndices),
-       orderItems = orderItems ?? [],
+       orderItems = orderItems ?? items ?? [],
        fillAcceptedAnswers = fillAcceptedAnswers ?? [],
        pairs = pairs ?? {};
 
@@ -532,6 +533,7 @@ class QuizQuestion {
 
   // التوافق العكسي
   List<String> get options => optionsList.map((o) => o.text).toList();
+  List<String> get items => orderItems;
   List<int> get correctIndices {
     final list = <int>[];
     for (int i = 0; i < optionsList.length; i++) {
